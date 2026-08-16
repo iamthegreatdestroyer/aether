@@ -22,6 +22,35 @@ html, body {
 
 #map { position: absolute; inset: 0; }
 
+/* The second canvas of the two-canvas pattern: particles animate here at full rate while
+   MapLibre's own canvas repaints only on camera moves. pointer-events none so the map
+   underneath keeps all interaction. */
+#wind {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+#wind-chip {
+  position: absolute;
+  z-index: 6;
+  padding: 4px 9px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font: 11px/1.4 ui-monospace, Consolas, monospace;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+}
+#wind-chip .chip-meta { color: var(--muted); }
+
+#topbar button.is-on { border-color: var(--accent); color: var(--accent); }
+
 /* ---- header ---- */
 #topbar {
   position: absolute;

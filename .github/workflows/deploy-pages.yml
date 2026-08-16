@@ -11,6 +11,13 @@ on:
       - 'spike/**'
       - 'docs/**'
       - '*.md'
+  schedule:
+    # The Tier B wind-texture cron (proposal §5.2.3): rebuild + redeploy every 6 h with the
+    # freshest published GFS cycle. Artifact deploys, so no data commits pollute history —
+    # the committed texture stays as the dev fallback / last-known-good. Minutes offset off
+    # the hour per Actions etiquette; timed ~4.5 h after each cycle (00/06/12/18Z), when
+    # f000 is reliably published. The builder walks back a cycle if it isn't.
+    - cron: '27 4,10,16,22 * * *'
   workflow_dispatch:
 
 permissions:
@@ -39,6 +46,15 @@ jobs:
       # The contract must hold before a deploy — same guards as the daily probe.
       - run: node scripts/probe-sources.mjs --tier A
       - run: node scripts/gen-attribution.mjs --check
+      # Tier B: refresh the wind texture from the latest GFS cycle. Pure-Python decoder —
+      # no ecCodes, no apt-get, nothing tied to the runner image. `|| true` is deliberate:
+      # a NOMADS outage must degrade to the committed last-known-good texture, not block
+      # the app deploy.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy pillow
+      - run: python scripts/build_wind_texture.py || echo "::warning::texture refresh failed — deploying last-known-good"
       - run: pnpm build
       - uses: actions/upload-pages-artifact@v3
         with:

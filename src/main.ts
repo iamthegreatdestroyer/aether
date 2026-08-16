@@ -21,6 +21,7 @@ import type { CardState } from './ui/forecastCard';
 import { addLocation, loadLocations, locationKey, removeLocation } from './ui/locations';
 import type { SavedLocation } from './ui/locations';
 import { buildSourcesDialog, renderFooter } from './ui/attribution';
+import { WindLayer } from './particles/windLayer';
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -167,6 +168,71 @@ function refreshAll(): void {
   for (const loc of locations) void hydrateLocation(loc);
 }
 
+// ---------------------------------------------------------------- wind layer
+
+// Registered like any other layer: the texture is derived from NOMADS GFS, so the
+// denylist/flag door and the contract's licensing row both apply to it.
+registerLayer('wind-particles', 'nomads-gfs');
+
+const windCanvas = document.getElementById('wind') as HTMLCanvasElement;
+const windLayer = new WindLayer(map, windCanvas);
+const windToggle = document.getElementById('wind-toggle') as HTMLButtonElement;
+const WIND_PREF_KEY = 'aether.wind';
+
+async function setWind(on: boolean): Promise<void> {
+  try {
+    if (on) await windLayer.start();
+    else windLayer.stop();
+  } catch (err) {
+    windToggle.disabled = true;
+    windToggle.title = err instanceof Error ? err.message : String(err);
+    return;
+  }
+  windToggle.classList.toggle('is-on', windLayer.isRunning);
+  localStorage.setItem(WIND_PREF_KEY, windLayer.isRunning ? 'on' : 'off');
+}
+
+windToggle.addEventListener('click', () => void setWind(!windLayer.isRunning));
+
+// Battery: no animation while the tab is hidden. Resume follows the saved preference.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (windLayer.isRunning) windLayer.stop();
+  } else if (localStorage.getItem(WIND_PREF_KEY) === 'on') {
+    void setWind(true);
+  }
+});
+
+// Default: on — unless the user asked the OS for reduced motion, which a full-screen
+// million-particle animation would be an obnoxious answer to.
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const windPref = localStorage.getItem(WIND_PREF_KEY);
+if (windPref === 'on' || (windPref === null && !reducedMotion)) void setWind(true);
+
+// The picker chip: wind at the cursor, decoded from the same texels the shader samples.
+// Desktop only — there is no hover on touch, and the phones' screen space is spoken for.
+const chip = document.getElementById('wind-chip')!;
+if (window.matchMedia('(hover: hover)').matches) {
+  map.on('mousemove', (e) => {
+    if (!windLayer.isRunning) {
+      chip.hidden = true;
+      return;
+    }
+    const s = windLayer.sampleWind(e.lngLat.lng, e.lngLat.lat);
+    if (!s) {
+      chip.hidden = true;
+      return;
+    }
+    chip.hidden = false;
+    chip.style.left = `${e.point.x + 14}px`;
+    chip.style.top = `${e.point.y + 14}px`;
+    chip.innerHTML = `${s.speedMs.toFixed(1)} m/s @ ${Math.round(s.dirDeg)}°<br><span class="chip-meta">GFS ${windLayer.meta?.cycle ?? ''}</span>`;
+  });
+  map.on('mouseout', () => {
+    chip.hidden = true;
+  });
+}
+
 // ---------------------------------------------------------------- chrome
 
 const sourcesDialog = buildSourcesDialog();
@@ -200,4 +266,15 @@ if ('serviceWorker' in navigator) {
   layers: () => import('./layers/registry').then((m) => m.listLayers()),
   swState: () =>
     navigator.serviceWorker?.getRegistration().then((r) => r?.active?.state ?? 'none'),
+  wind: () => ({
+    running: windLayer.isRunning,
+    fps: windLayer.fps,
+    particles: windLayer.particleCount,
+    cycle: windLayer.meta?.cycle ?? null,
+    validTime: windLayer.meta?.validTime ?? null,
+  }),
+  /** P1 exit check: picker vs Open-Meteo GFS at the texture's valid time. */
+  sampleWind: (lng: number, lat: number) => windLayer.sampleWind(lng, lat),
+  /** Headless render proof — see WindLayer.debugStep. */
+  windStep: (n?: number) => windLayer.debugStep(n),
 };
