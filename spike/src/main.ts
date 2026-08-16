@@ -18,6 +18,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { BaselineEngine } from './engines/baseline';
 import { MapLibreGlWindEngine } from './engines/maplibre-gl-wind';
+import { WeatherLayersEngine } from './engines/weatherlayers';
 import { Hud } from './hud';
 import type { EngineParams, ParticleEngine, ViewState, WindField } from './engines/types';
 
@@ -33,7 +34,7 @@ const PARAMS: EngineParams = {
 const ENGINES: Array<() => ParticleEngine> = [
   () => new BaselineEngine(),
   () => new MapLibreGlWindEngine(),
-  // () => new WeatherLayersEngine(),    // npm: weatherlayers-gl (MPL-2.0 OR custom terms)
+  () => new WeatherLayersEngine(),
 ];
 
 async function loadWindField(): Promise<WindField> {

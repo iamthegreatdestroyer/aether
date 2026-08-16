@@ -78,6 +78,44 @@ Two distinct regimes, and conflating them would misread the library:
 - **Above ~3M instances it is genuinely GPU-bound** and halves cleanly per doubling
   (31.7 → 15.9 → 7.8).
 
+### `weatherlayers-gl` 2026.5.2
+
+| particles | primitives (×50 trail) | fps | p95 |
+|---:|---:|---:|---:|
+| 4,096 | 204,800 | 60.0 | 17.1 ms |
+| 16,384 | 819,200 | 38.3 | 28.9 ms |
+| 65,536 | 3,276,800 | 11.9 | 92.2 ms |
+
+Reaches full 60 fps at low load — which **independently confirms** that `maplibre-gl-wind`'s
+flat 30 fps is a scheduling cadence and not the GPU: same hardware, same primitive count, twice
+the frame rate. But it degrades hardest of the three.
+
+Visually it is the best of the three: long, elegant, continuous streamlines. (Configured white
+here with no palette — that is this harness's choice, not a limitation.)
+
+### Matched on primitives — the only fair axis
+
+Deck layers draw 50 line instances per particle; the baseline draws 1 point. At equal
+*primitive* counts on identical hardware and camera:
+
+| primitives | baseline | `maplibre-gl-wind` | `weatherlayers-gl` |
+|---:|---|---|---|
+| 204,800 | **60.0** fps · 17.0 ms | 30.0 · 35.8 ms | **60.0** · 17.1 ms |
+| 819,200 | **59.9** · 17.0 ms | 30.0 · 34.6 ms | 38.3 · 28.9 ms |
+| 3,276,800 | **60.4** · 19.6 ms | 33.8 · 34.4 ms | 11.9 · 92.2 ms |
+| peak throughput | **198 M prim/s** *(still vsync-capped)* | 111 M prim/s | 39 M prim/s |
+
+Three genuinely different characters:
+
+- **Baseline** never saturates. 60 fps at 3.28 M primitives and at 2 M *particles*; p95 only
+  began creeping (19.6 ms) at the top of the range. Its ceiling was never located.
+- **`maplibre-gl-wind`** is capped at ~30 fps by scheduling regardless of load, but is the more
+  *efficient* deck layer by a wide margin — 111 M prim/s, barely degrading across a 16× load
+  increase.
+- **`weatherlayers-gl`** is uncapped and fastest-tied at light load, then falls off a cliff:
+  39 M prim/s, roughly 2.8× less efficient than `maplibre-gl-wind` at the same primitive count,
+  likely the cost of being a `CompositeLayer` doing LINEAR image interpolation in-shader.
+
 ### The honest comparison
 
 Per *particle* the baseline is ~30× ahead, but that overstates it, because the two spend their
@@ -98,12 +136,27 @@ design trade — deck.gl's trails survive camera movement without smearing, whic
 framebuffer approach does not — but at 50× the cost it cannot reach the 1M-particle target on
 this hardware, and it hangs the renderer trying.
 
-Other costs worth pricing in for a PWA: adding it pulled in **six deck.gl/luma.gl peers**, took
-`node_modules` from ~40 MB to 153 MB, and grew the production bundle from **1,071 kB (290 kB
-gzip) to 1,689 kB (472 kB gzip)** — +182 kB gzipped for one layer.
+Costs beyond frame rate, which matter for a PWA:
 
-**Provisional verdict: the baseline wins on this hardware, decisively.** Still owed before
-closing G0.4: both engines on a real phone, and `weatherlayers-gl` as a third data point.
+| | bundle (raw) | bundle (gzip) | `node_modules` |
+|---|---:|---:|---:|
+| baseline only | 1,071 kB | 290 kB | ~40 MB |
+| + `maplibre-gl-wind` | 1,689 kB | 472 kB | 153 MB |
+| + `weatherlayers-gl` | 1,953 kB | 563 kB | 180 MB |
+
+**+273 kB gzipped** to carry both libraries — for a $0/month offline-first PWA that is the
+whole app budget several times over.
+
+**Provisional verdict: the baseline wins on this hardware, decisively** — on frame rate, on
+bundle size, on dependency surface, and on licensing. Still owed before closing G0.4: a real
+phone, and a discrete-GPU data point.
+
+One caveat against my own result: the baseline is a *points-with-framebuffer-trails* renderer,
+and both libraries draw *geometric* trails. Geometric trails survive camera movement without
+smearing and look better at low particle counts — `weatherlayers-gl`'s output is the nicest of
+the three. If the app ends up wanting few, long, beautiful streamlines rather than a dense
+field, the ranking narrows considerably. At the 1M-particle target the baseline is the only
+one that finishes.
 
 ## Candidates
 
@@ -114,10 +167,38 @@ see below.
 
 | Candidate | Version | License | Status |
 |---|---|---|---|
-| **Baseline** | — | MIT lineage, zero deps | ✅ wired · 60 fps @ 2M |
-| **`maplibre-gl-wind`** | 0.2.1, modified 2026-08-15 | MIT | ✅ wired · 30 fps ceiling, GPU-bound past 65k |
-| `weatherlayers-gl` | 2026.5.2 | MPL-2.0 **OR** custom terms | ⬜ next. Read the dual-license — the alternate term exists for a reason. |
-| `deck.gl` raw overlay | 9.3.10 | MIT | ⬜ already installed as a transitive peer |
+| **Baseline** | — | MIT lineage, zero deps | ✅ 60 fps @ 2M particles · never saturated |
+| **`maplibre-gl-wind`** | 0.2.1, modified 2026-08-15 | MIT | ✅ 30 fps scheduling cap · 111 M prim/s |
+| **`weatherlayers-gl`** | 2026.5.2 | MPL-2.0 **OR** commercial | ✅ best-looking · 39 M prim/s · see licence below |
+| `deck.gl` raw overlay | 9.3.10 | MIT | ⬜ optional; already present as a peer |
+
+### `weatherlayers-gl` — the licence needed reading, and it matters
+
+Declared `(MPL-2.0 OR LicenseRef-LICENSE_TERMS_OF_USE.md)`. Those two halves are not
+interchangeable. From the commercial Terms, Art. 1.2:
+
+> The User declares he/she concludes the Contract only for purposes of its **business
+> activity** and he/she is not in a position of consumer. **Consumers may not conclude this
+> Contract and may not use the Library** on the basis of the Terms.
+
+Aether is a personal hobby project — squarely a consumer — so that half is *unavailable* to it,
+and it carries a EUR 4,000 contractual penalty for data-warranty breaches (Art. 4.4).
+
+**The MPL-2.0 half has no field-of-use restriction, so that is the option taken, deliberately
+and on the record.** MPL-2.0 is file-level copyleft: modify weatherlayers' own files and
+distribute, and those files must be published under MPL. Consuming it unmodified inside a
+larger work of any licence is fine, and Aether is never conveyed. **Revisit if Aether ever
+monetises** — the dual licence exists precisely to sell the other half.
+
+Also: it depends on `@scarf/scarf` with `scarfSettings: {allowTopLevel: true}` — install-time
+telemetry. For an app whose pitch is "no accounts, no ads, no tracking" that deserves a
+conscious call; disable with `SCARF_ANALYTICS=false` or `scarfSettings.enabled = false` in our
+own `package.json`.
+
+One integration difference worth noting: its `image` prop takes `TextureData`
+(`{data, width, height}`), **not a URL** — so the harness decodes the PNG to raw RGBA via a
+canvas first. Slightly more work than `maplibre-gl-wind`'s URL prop, but strictly more control,
+and it is the same shape a Tier B pipeline would hand it.
 
 ### What the name `maplibre-gl-wind` does not tell you
 
