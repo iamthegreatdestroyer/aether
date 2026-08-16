@@ -1,0 +1,51 @@
+name: Endpoint contract
+
+# The whole $0/month architecture rests on other organisations' free services, revocable
+# without notice. It has already happened twice: RainViewer's free tier collapsed in
+# January 2026, and NOAA moved its real-time solar-wind JSON out of /products/solar-wind/
+# into /json/rtsw/ within four days during this project's own planning phase.
+#
+# This job turns "the app mysteriously broke" into "SWPC moved a path on the 14th".
+
+on:
+  schedule:
+    # 07:17 UTC — deliberately off the hour. Cron-on-the-hour is the most contended slot on
+    # shared runners, and nothing here is time-critical.
+    - cron: '17 7 * * *'
+  push:
+    paths:
+      - 'src/data/sources.mjs'
+      - 'scripts/probe-sources.mjs'
+      - '.github/workflows/probe-sources.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No install step: the probe deliberately has zero dependencies and imports the
+      # contract directly. A contract that needs a toolchain to verify stops being verified.
+      - name: Probe every source in the contract
+        run: node scripts/probe-sources.mjs
+
+      - name: Verify ATTRIBUTION.md matches the contract
+        run: node scripts/gen-attribution.mjs --check
+
+  # Reported separately so a drifting esoteric source never masks a broken core one.
+  probe-tier-a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Probe browser-reachable (Tier A) sources only
+        run: node scripts/probe-sources.mjs --tier A

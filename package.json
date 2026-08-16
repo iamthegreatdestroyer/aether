@@ -1,0 +1,21 @@
+{
+  "name": "aether",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A free, personal-use weather app: Windy-class visualization, a forecast-verification ledger, and the atmosphere-to-space chain. $0/month.",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "volta": {
+    "node": "20.20.1"
+  },
+  "scripts": {
+    "probe": "node scripts/probe-sources.mjs",
+    "probe:a": "node scripts/probe-sources.mjs --tier A",
+    "probe:json": "node scripts/probe-sources.mjs --json",
+    "attribution": "node scripts/gen-attribution.mjs",
+    "attribution:check": "node scripts/gen-attribution.mjs --check"
+  },
+  "license": "MIT"
+}

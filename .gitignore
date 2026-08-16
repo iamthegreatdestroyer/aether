@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.vite/
+*.local
+.env
+.env.*
+!.env.example
+
+# Tauri (from P6)
+src-tauri/target/
+
+# Tier B pipeline artifacts — these are generated, never committed to main.
+# Textures and PMTiles belong on the gh-pages branch or R2.
+data/textures/
+data/pmtiles/
+*.grib
+*.grib2
+
+.DS_Store
+Thumbs.db

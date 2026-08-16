@@ -1,0 +1,13 @@
+{
+  "name": "@aether/mesh-bridge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reserved GPL-isolation slot for the Aether Mesh bridge (Proposal 2). Intentionally empty until Aether P3 ships.",
+  "main": "src/index.ts",
+  "aether": {
+    "slot": "reserved",
+    "activateAfter": "P3",
+    "licenseIsolation": "GPL-3.0 (meshtastic-sdk) must not leak past this boundary"
+  }
+}
