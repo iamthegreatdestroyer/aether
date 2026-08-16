@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Aether spike — particle engine gate G0.4</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: rgba(12, 18, 32, 0.88);
+        --line: rgba(255, 255, 255, 0.12);
+        --text: #e8edf7;
+        --muted: #93a1bd;
+        --pass: #4ade80;
+        --warn: #fbbf24;
+        --fail: #f87171;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+      body {
+        font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: var(--text);
+      }
+
+      /* The two canvases. Stacking order is the entire point of the harness. */
+      #basemap, #particles { position: absolute; inset: 0; width: 100%; height: 100%; }
+      #basemap { z-index: 1; }
+      #particles { z-index: 2; pointer-events: none; }
+
+      #hud, #controls {
+        position: absolute; z-index: 3;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+        backdrop-filter: blur(10px);
+      }
+      #hud { top: 12px; left: 12px; width: 340px; }
+      #controls { bottom: 12px; left: 12px; width: 340px; }
+
+      .row { display: flex; align-items: baseline; gap: 8px; margin: 3px 0; }
+      .row label { color: var(--muted); min-width: 120px; }
+      .row b { font-weight: 600; }
+      .row small { color: var(--muted); }
+      .row.big { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; align-items: center; }
+      .row.big small { font-size: 12px; font-weight: 400; }
+      .verdict { margin-left: auto; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
+      .pass { color: var(--pass); } .warn { color: var(--warn); } .fail { color: var(--fail); }
+      .verdict.pass { background: rgba(74, 222, 128, 0.15); }
+      .verdict.warn { background: rgba(251, 191, 36, 0.15); }
+      .verdict.fail { background: rgba(248, 113, 113, 0.15); }
+      hr { border: 0; border-top: 1px solid var(--line); margin: 9px 0; }
+      .hint, .prov { color: var(--muted); font-size: 11px; margin: 4px 0 2px; }
+      .gpu { font-size: 11px; font-weight: 400; word-break: break-word; }
+
+      #controls label.ctl { display: block; color: var(--muted); margin: 9px 0 2px; }
+      #controls .val { color: var(--text); float: right; }
+      input[type='range'] { width: 100%; accent-color: #6aa9ff; }
+      select {
+        width: 100%; background: #131c30; color: var(--text);
+        border: 1px solid var(--line); border-radius: 6px; padding: 5px;
+        font: inherit;
+      }
+      .title { font-weight: 700; letter-spacing: 0.4px; }
+      .sub { color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+
+      @media (max-width: 760px) {
+        #hud, #controls { width: calc(100% - 24px); }
+        #controls { bottom: 8px; } #hud { top: 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="basemap"></div>
+    <canvas id="particles"></canvas>
+
+    <div id="hud">measuring…</div>
+
+    <div id="controls">
+      <div class="title">G0.4 · particle engine spike</div>
+      <div class="sub">Exit test: 60&nbsp;fps on laptop AND usable on your phone.</div>
+
+      <label class="ctl">engine</label>
+      <select id="engine"></select>
+
+      <label class="ctl">particles <span class="val" id="count-val"></span></label>
+      <input id="count" type="range" min="10000" max="2000000" step="10000" value="1000000" />
+
+      <label class="ctl">speed <span class="val" id="speed-val"></span></label>
+      <input id="speed" type="range" min="0.1" max="4" step="0.1" value="1" />
+
+      <label class="ctl">trail persistence <span class="val" id="fade-val"></span></label>
+      <input id="fade" type="range" min="0.8" max="0.995" step="0.005" value="0.96" />
+
+      <label class="ctl">respawn rate <span class="val" id="drop-val"></span></label>
+      <input id="drop" type="range" min="0.0005" max="0.02" step="0.0005" value="0.003" />
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

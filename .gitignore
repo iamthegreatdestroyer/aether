@@ -18,3 +18,7 @@ data/pmtiles/
 
 .DS_Store
 Thumbs.db
+
+# Spike is throwaway, but its source is worth keeping; its build output is not.
+spike/dist/
+spike/node_modules/

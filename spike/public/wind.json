@@ -1,0 +1,25 @@
+{
+  "source": "NOAA/NCEP GFS 0.25deg via NOMADS filter CGI",
+  "license": "public domain",
+  "cycle": "20260816T1200Z",
+  "forecastHour": 0,
+  "variable": "10 m wind",
+  "width": 360,
+  "height": 181,
+  "uMin": -20.47324462890625,
+  "uMax": 20.63675537109375,
+  "vMin": -23.766083984375,
+  "vMax": 17.993916015625,
+  "maxSpeedMs": 24.41619173082143,
+  "meanSpeedMs": 6.28156751731424,
+  "lonRange": [
+    -180,
+    180
+  ],
+  "latRange": [
+    90,
+    -90
+  ],
+  "encoding": "R = (u - uMin) / (uMax - uMin), G = (v - vMin) / (vMax - vMin)",
+  "decodedBy": "spike/tools/build_fixture.py (pure-python GRIB2 template 5.3)"
+}
