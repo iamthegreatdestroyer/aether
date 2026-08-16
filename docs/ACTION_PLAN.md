@@ -312,7 +312,7 @@ Two constraints to carry forward now, because they shape `mesh-bridge`'s interfa
 | 4 | **Particle spike** (G0.4) — 3 engines benchmarked | 🟡 baseline wins decisively; **owed: your phone + a discrete GPU** |
 | 6 | **Tauri webview smoke test** (G0.6 — see §6a) | ✅ passes · baseline within ±1% of Chrome in WebView2 |
 | 5 | ADR 0001 pinning MapLibre v5.24.0 (G0.5) | ✅ done — `docs/adr/0001-maplibre-version.md` |
-| — | Push `aether/` to GitHub as a **public** repo | ⬜ **you** — public is what makes Actions + Pages free |
+| — | Push `aether/` to GitHub as a **public** repo | ✅ **done 2026-08-16** — https://github.com/sgbilod/aether · live at https://sgbilod.github.io/aether/ · first CI deploy green, **Tier B texture cron ran on the runner** (sidecar builtAt 23:36:27Z), daily probe + 6-hourly wind cron armed |
 
 **Update 2026-08-16, later:** P0 shipped (commit `0d10b83`) — see the roadmap table. The owner-gated list is now: the PATH fix, the GitHub push (which also activates the Pages deploy workflow already in the repo), the spike on your phone, and **the P0 phone-install half of the exit test** — same LAN visit, two birds.
 
