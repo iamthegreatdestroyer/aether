@@ -31,3 +31,6 @@ spike/node_modules/
 # with the app window. The durable record is the results table in spike/README.md, which is
 # reviewed; a raw dump that looks authoritative but may not be is worse than no dump.
 spike/src-tauri/bench-results.jsonl
+
+__pycache__/
+*.pyc
