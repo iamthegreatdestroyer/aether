@@ -4,9 +4,21 @@ A free, personal-use weather app: Windy-class visualization, a forecast-verifica
 that compounds with use, and the atmosphere-to-space chain nobody fuses. **$0/month, no
 backend, no accounts, no ads.**
 
-> **Status: Phase 0 (gate).** No app code yet. What exists is the endpoint contract, the
-> compliance skeleton, and the verification harness — deliberately, because those are the
-> things that rot silently if they are added later.
+> **Status: P0 shipped.** The PWA skeleton is live: MapLibre 5.24.0 (pinned per ADR 0001) on
+> the OpenFreeMap dark basemap, Open-Meteo forecast cards for saved locations (add by clicking
+> the map, capped at 10), a Data Sources screen rendered from the contract, offline-first boot
+> from IndexedDB snapshots, a service worker, and — live from first install — the verification
+> ledger's write path logging every forecast at fetch time with the full 168-point hourly grid
+> the P3 scorer will need.
+>
+> ```bash
+> volta run --node 20.20.1 -- pnpm -C aether dev   # http://localhost:5175
+> ```
+>
+> Verified boot trace (dev, warm snapshot): all cards render **stale-from-snapshot at t≈92 ms**
+> before any network response — the offline path exercised on every boot, not a special mode —
+> then refresh fresh at t=266/1280/2287 ms, the ~1 s spacing being the fetch scheduler's
+> per-source politeness chain doing its job visibly.
 
 Full plan: [`../ACTION_PLAN.md`](../ACTION_PLAN.md).
 Source research: `../Kimi_Agent_Free Weather App Proposals/`.

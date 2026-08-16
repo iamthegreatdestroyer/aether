@@ -1,0 +1,55 @@
+name: Deploy to Pages
+
+# The P0 exit path: build the PWA and publish it to GitHub Pages. Free on public repos —
+# which is the entire Tier B hosting thesis. Activates once the repo is pushed and Pages is
+# set to "GitHub Actions" in Settings → Pages.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'spike/**'
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # The contract must hold before a deploy — same guards as the daily probe.
+      - run: node scripts/probe-sources.mjs --tier A
+      - run: node scripts/gen-attribution.mjs --check
+      - run: pnpm build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -23,6 +23,11 @@ export interface Source {
   role: string;
   /** Cheap, representative request used by the CI probe. */
   probeUrl: string;
+  /**
+   * Base URL the app builds real requests from. Present only on sources the app consumes
+   * directly; the probe never uses it. Ground rule #1: no literal weather URLs in app code.
+   */
+  baseUrl?: string;
   tier: Tier;
   cors: CorsState;
   /** Response codes that mean "healthy". 429 counts as healthy-but-throttled for ECMWF. */

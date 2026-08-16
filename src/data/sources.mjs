@@ -28,6 +28,8 @@ export const SOURCES = [
     id: 'open-meteo',
     name: 'Open-Meteo',
     role: 'Forecast, ensemble, archive, air quality, picker',
+    // The app builds its request URLs from this, never from a literal — ground rule #1.
+    baseUrl: 'https://api.open-meteo.com/v1/forecast',
     probeUrl:
       'https://api.open-meteo.com/v1/forecast?latitude=40.7&longitude=-74.0&hourly=temperature_2m',
     tier: 'A',
@@ -384,6 +386,9 @@ export const SOURCES = [
     id: 'openfreemap',
     name: 'OpenFreeMap',
     role: 'Basemap style + tiles',
+    // Dark, not liberty: the spike measured particles at 7% pixel coverage rendering
+    // invisibly on a light basemap. Every product in this space uses a dark ground.
+    baseUrl: 'https://tiles.openfreemap.org/styles/dark',
     probeUrl: 'https://tiles.openfreemap.org/styles/liberty',
     tier: 'A',
     cors: 'open',
