@@ -20,7 +20,7 @@ backend, no accounts, no ads.**
 > then refresh fresh at t=266/1280/2287 ms, the ~1 s spacing being the fetch scheduler's
 > per-source politeness chain doing its job visibly.
 
-Full plan: [`../ACTION_PLAN.md`](../ACTION_PLAN.md).
+Full plan: [`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md).
 Source research: `../Kimi_Agent_Free Weather App Proposals/`.
 
 ## What's here
@@ -77,4 +77,4 @@ called that healthy.
 ## Next
 
 Gate items G0.1 (Node ≥ 20 on PATH), G0.4 (particle-engine spike), then P0.
-See [`../ACTION_PLAN.md`](../ACTION_PLAN.md) §2 and §8.
+See [`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md) §2 and §8.
