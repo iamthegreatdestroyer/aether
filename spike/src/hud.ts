@@ -21,6 +21,14 @@ export interface HudStats {
   actualParticles: number;
   requestedParticles: number;
   fixture: string;
+  /**
+   * GPU primitives per frame when they differ from the particle count. maplibre-gl-wind draws
+   * numParticles x maxAge line instances, so comparing engines on particle count alone would
+   * understate it by 50x.
+   */
+  primitives: { count: number; kind: string } | null;
+  /** deck.gl-style engines run their own loop; the two-canvas proof reads differently. */
+  ownsSurface: boolean;
 }
 
 export class Hud {
@@ -36,7 +44,7 @@ export class Hud {
   private gpu = 'unknown';
   private stats: HudStats = {
     engineLabel: '—', provenance: '', actualParticles: 0,
-    requestedParticles: 0, fixture: '—',
+    requestedParticles: 0, fixture: '—', primitives: null, ownsSurface: false,
   };
 
   constructor(el: HTMLElement, gl: WebGL2RenderingContext) {
@@ -51,6 +59,19 @@ export class Hud {
 
   setStats(s: Partial<HudStats>): void {
     this.stats = { ...this.stats, ...s };
+  }
+
+  /** Clear the rolling windows. Call on engine switch so one engine's numbers never bleed
+   *  into the next engine's first reading — that would quietly favour whichever ran second. */
+  reset(): void {
+    this.frameTimes = [];
+    this.particleFrames = 0;
+    this.mapRenders = 0;
+    this.fps = 0;
+    this.p95 = 0;
+    this.mapFps = 0;
+    this.last = performance.now();
+    this.windowStart = performance.now();
   }
 
   /** Call from MapLibre's `render` event. */
@@ -97,12 +118,21 @@ export class Hud {
           ? '<span class="fail">tracking particle rate — split NOT working</span>'
           : `<span class="warn">${this.mapFps.toFixed(1)}/s</span>`;
 
+    const prim = this.stats.primitives;
+    const primRow =
+      prim && prim.count !== this.stats.actualParticles
+        ? `<div class="row"><label>GPU primitives</label>
+             <b class="warn">${prim.count.toLocaleString()}</b>
+             <small>${prim.kind}</small></div>`
+        : '';
+
     this.el.innerHTML = `
       <div class="row big"><span>${this.fps.toFixed(1)}</span><small>fps</small>
         <span class="verdict ${v.cls}">${v.text}</span></div>
       <div class="row"><label>p95 frame</label><b>${this.p95.toFixed(1)} ms</b></div>
       <div class="row"><label>particles</label><b>${this.stats.actualParticles.toLocaleString()}</b>
         <small>req ${this.stats.requestedParticles.toLocaleString()}</small></div>
+      ${primRow}
       <hr>
       <div class="row"><label>basemap repaints</label>${split}</div>
       <div class="hint">Hold the camera still. Basemap should go idle while fps stays high —
@@ -110,6 +140,9 @@ export class Hud {
       <hr>
       <div class="row"><label>engine</label><b>${this.stats.engineLabel}</b></div>
       <div class="prov">${this.stats.provenance}</div>
+      <div class="row"><label>renders into</label><b>${
+        this.stats.ownsSurface ? 'its own canvas (deck.gl overlay)' : 'harness canvas'
+      }</b></div>
       <div class="row"><label>GPU</label><b class="gpu">${this.gpu}</b></div>
       <div class="row"><label>fixture</label><b class="gpu">${this.stats.fixture}</b></div>
     `;

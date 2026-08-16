@@ -19,7 +19,13 @@
  * the whole reason a million particles is achievable at 60 fps.
  */
 
-import type { EngineParams, ParticleEngine, ViewState, WindField } from './types';
+import type {
+  EngineContext,
+  EngineParams,
+  ParticleEngine,
+  ViewState,
+  WindField,
+} from './types';
 
 const QUAD_VERT = `#version 300 es
 in vec2 a_pos;
@@ -43,13 +49,22 @@ uniform float u_speed;
 uniform float u_drop_rate;
 uniform float u_rand_seed;
 
-// 2-byte-per-axis position codec: 16 bits of precision per axis instead of 8.
+// 2-byte-per-axis position codec: 16 bits per axis instead of 8.
+//
+// The 255 here is load-bearing and 256 is WRONG, which is not obvious and cost a debugging
+// pass. Storing hi = floor(p*256)/255 and reading back hi + lo/255 reconstructs p * 256/255 --
+// a +0.392% multiplicative error EVERY FRAME, compounding to 1.265x per second. The symptom
+// is not a crash: particles drift uniformly southeast at a rate that swamps the actual wind,
+// which reads as "the wind field looks oddly uniform" rather than "the codec is broken".
+//
+// With 255 the round trip is exact: lo = fract(p*255), hi = floor(p*255)/255,
+// and hi + lo/255 == (floor(p*255) + fract(p*255)) / 255 == p.
+// Channel layout matches the windgl/cambecc lineage: rg = low bytes, ba = high bytes.
 vec2 decodePos(vec4 c) {
-  return vec2(c.r / 255.0 + c.g, c.b / 255.0 + c.a) * 255.0 / 256.0 + vec2(0.5/256.0*0.0);
+  return vec2(c.r / 255.0 + c.b, c.g / 255.0 + c.a);
 }
 vec4 encodePos(vec2 p) {
-  vec2 scaled = fract(p * 256.0);
-  return vec4(scaled.x, floor(p.x * 256.0) / 255.0, scaled.y, floor(p.y * 256.0) / 255.0);
+  return vec4(fract(p * 255.0), floor(p * 255.0) / 255.0);
 }
 
 float rand(vec2 co) {
@@ -57,9 +72,8 @@ float rand(vec2 co) {
 }
 
 void main() {
-  vec4 enc = texture(u_particles, v_uv);
   // pos.x in [0,1] maps lon -180..180; pos.y in [0,1] maps lat +90..-90
-  vec2 pos = vec2(enc.r / 255.0 + enc.g, enc.b / 255.0 + enc.a);
+  vec2 pos = decodePos(texture(u_particles, v_uv));
 
   vec2 raw = texture(u_wind, pos).rg;
   vec2 wind = mix(u_wind_min, u_wind_max, raw);   // back to m/s
@@ -111,8 +125,9 @@ void main() {
     fract(a_index / u_particles_res),
     floor(a_index / u_particles_res) / u_particles_res
   );
+  // Must match encodePos in the update shader exactly — rg = low bytes, ba = high bytes.
   vec4 enc = texture(u_particles, texel);
-  vec2 pos = vec2(enc.r / 255.0 + enc.g, enc.b / 255.0 + enc.a);
+  vec2 pos = vec2(enc.r / 255.0 + enc.b, enc.g / 255.0 + enc.a);
 
   // equirectangular [0,1] -> lon/lat -> Web Mercator [0,1]
   float lon = pos.x * 360.0 - 180.0;
@@ -210,7 +225,10 @@ function texture(
 export class BaselineEngine implements ParticleEngine {
   readonly id = 'baseline';
   readonly label = 'Baseline (cambecc/earth port)';
-  readonly provenance = 'Written from scratch for this spike. Zero dependencies, MIT lineage.';
+  readonly provenance =
+    'Written from scratch for this spike. Zero dependencies, MIT lineage. ' +
+    'Draws 1 GL_POINT per particle into a faded trail buffer.';
+  readonly ownsSurface = false;
 
   private gl!: WebGL2RenderingContext;
   private field!: WindField;
@@ -235,7 +253,8 @@ export class BaselineEngine implements ParticleEngine {
   private width = 0;
   private height = 0;
 
-  init(gl: WebGL2RenderingContext, field: WindField, params: EngineParams): void {
+  init(ctx: EngineContext, field: WindField, params: EngineParams): void {
+    const gl = ctx.gl;
     this.gl = gl;
     this.field = field;
     // COPY, never alias. The caller owns a long-lived PARAMS object and mutates it in place;
@@ -310,6 +329,13 @@ export class BaselineEngine implements ParticleEngine {
   actualParticleCount(): number {
     return this.count;
   }
+
+  primitivesPerFrame(): { count: number; kind: string } {
+    return { count: this.count, kind: 'points' };
+  }
+
+  /** The harness drives this engine directly, so the callback is never needed. */
+  setFrameCallback(_cb: () => void): void {}
 
   frame(view: ViewState): void {
     const gl = this.gl;

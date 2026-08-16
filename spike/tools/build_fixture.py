@@ -279,8 +279,20 @@ def main() -> int:
     u, v = np.roll(u, half, axis=1), np.roll(v, half, axis=1)
 
     speed = np.hypot(u, v)
-    u_min, u_max = float(u.min()), float(u.max())
-    v_min, v_max = float(v.min()), float(v.max())
+
+    # ONE SHARED SYMMETRIC RANGE FOR BOTH CHANNELS -- and the reason matters.
+    #
+    # The windgl/cambecc convention stores an independent [min,max] per channel, which packs
+    # the most precision into 8 bits. The deck.gl/weatherlayers convention (`imageUnscale`)
+    # is a SINGLE [min,max] pair applied to both channels, so an asymmetric per-channel
+    # encoding silently skews v against u there.
+    #
+    # A fixture that decodes differently in two engines makes the comparison meaningless, so
+    # this uses one symmetric range that is exactly correct under both readings. It costs
+    # roughly half a bit of precision per channel and buys a fair benchmark.
+    extent = float(max(abs(u).max(), abs(v).max()))
+    u_min = v_min = -extent
+    u_max = v_max = extent
 
     rgba = np.zeros((u.shape[0], u.shape[1], 4), dtype=np.uint8)
     rgba[..., 0] = np.round((u - u_min) / (u_max - u_min) * 255).astype(np.uint8)
@@ -301,6 +313,11 @@ def main() -> int:
         "height": int(u.shape[0]),
         "uMin": u_min, "uMax": u_max,
         "vMin": v_min, "vMax": v_max,
+        # deck.gl / weatherlayers convention: one [min,max] for both channels. Identical to
+        # the per-channel values above by construction, so both engines decode the same field.
+        "imageUnscale": [u_min, u_max],
+        # [west, south, east, north] -- deck.gl layer `bounds` prop
+        "bounds": [-180, -90, 180, 90],
         "maxSpeedMs": float(speed.max()),
         "meanSpeedMs": float(speed.mean()),
         "lonRange": [-180, 180],

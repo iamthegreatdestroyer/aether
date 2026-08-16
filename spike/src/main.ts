@@ -17,6 +17,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { BaselineEngine } from './engines/baseline';
+import { MapLibreGlWindEngine } from './engines/maplibre-gl-wind';
 import { Hud } from './hud';
 import type { EngineParams, ParticleEngine, ViewState, WindField } from './engines/types';
 
@@ -31,7 +32,7 @@ const PARAMS: EngineParams = {
 // integration cost in its own words via `provenance`.
 const ENGINES: Array<() => ParticleEngine> = [
   () => new BaselineEngine(),
-  // () => new MapLibreGlWindEngine(),   // npm: maplibre-gl-wind (MIT, updated 2026-08-15)
+  () => new MapLibreGlWindEngine(),
   // () => new WeatherLayersEngine(),    // npm: weatherlayers-gl (MPL-2.0 OR custom terms)
 ];
 
@@ -99,7 +100,12 @@ async function main(): Promise<void> {
 
   const map = new maplibregl.Map({
     container: 'basemap',
-    style: 'https://tiles.openfreemap.org/styles/positron',
+    // Dark, not light. Started on `positron` and the particles were technically rendering at
+    // 7% pixel coverage while being nearly invisible in a screenshot — a light basemap washes
+    // out translucent particle trails. Every product in this space (Windy, Ventusky,
+    // earth.nullschool) uses a dark ground for exactly this reason, and a legibility problem
+    // is indistinguishable from a rendering bug until you fix the contrast.
+    style: 'https://tiles.openfreemap.org/styles/dark',
     center: [-30, 30],
     zoom: 2,
     // Pitch is disabled deliberately: the overlay projects with a flat Web Mercator transform,
@@ -118,14 +124,39 @@ async function main(): Promise<void> {
     requestedParticles: PARAMS.particleCount,
   });
 
+  const ctx = { gl, canvas, map };
+
   let engineIndex = 0;
-  let engine = ENGINES[engineIndex]!();
-  engine.init(gl, field, PARAMS);
-  hud.setStats({
-    engineLabel: engine.label,
-    provenance: engine.provenance,
-    actualParticles: engine.actualParticleCount(),
-  });
+  let engine: ParticleEngine;
+
+  function reportEngine(): void {
+    hud.setStats({
+      engineLabel: engine.label,
+      provenance: engine.provenance,
+      actualParticles: engine.actualParticleCount(),
+      requestedParticles: PARAMS.particleCount,
+      primitives: engine.primitivesPerFrame?.() ?? null,
+      ownsSurface: engine.ownsSurface,
+    });
+  }
+
+  function activate(index: number): void {
+    engineIndex = index;
+    engine = ENGINES[engineIndex]!();
+    engine.init(ctx, field, PARAMS);
+
+    // A surface-owning engine (deck.gl) draws to its own canvas and runs its own loop. Ours
+    // must get out of the way entirely: hide the harness canvas so two overlays cannot stack,
+    // and let the engine report its real frame rate instead of our idle rAF.
+    canvas.style.display = engine.ownsSurface ? 'none' : '';
+    if (engine.ownsSurface) {
+      engine.setFrameCallback(() => hud.tick());
+    } else {
+      engine.resize(canvas.width, canvas.height);
+    }
+    hud.reset();
+    reportEngine();
+  }
 
   function resize(): void {
     const dpr = window.devicePixelRatio || 1;
@@ -134,9 +165,11 @@ async function main(): Promise<void> {
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
-      engine.resize(w, h);
+      if (!engine.ownsSurface) engine.resize(w, h);
     }
   }
+
+  activate(0);
   resize();
   window.addEventListener('resize', resize);
 
@@ -149,10 +182,7 @@ async function main(): Promise<void> {
       (PARAMS[key] as number) = Number(input.value);
       if (out) out.textContent = fmt(Number(input.value));
       engine.setParams(PARAMS);
-      hud.setStats({
-        actualParticles: engine.actualParticleCount(),
-        requestedParticles: PARAMS.particleCount,
-      });
+      reportEngine();
     };
     input.addEventListener('input', apply);
     apply();
@@ -176,23 +206,20 @@ async function main(): Promise<void> {
     engineSel.value = String(engineIndex);
     engineSel.addEventListener('change', () => {
       engine.dispose();
-      engineIndex = Number(engineSel.value);
-      engine = ENGINES[engineIndex]!();
-      engine.init(gl, field, PARAMS);
-      engine.resize(canvas.width, canvas.height);
-      hud.setStats({
-        engineLabel: engine.label,
-        provenance: engine.provenance,
-        actualParticles: engine.actualParticleCount(),
-      });
+      activate(Number(engineSel.value));
     });
   }
 
   // ---- the loop
+  // Always running, because resize and the harness-driven engines need it. But it only ticks
+  // the HUD for engines the harness actually drives: counting our own idle iterations as
+  // "frames" for a deck.gl engine would report the browser's rAF rate, not the renderer's.
   function frame(): void {
     resize();
-    engine.frame(readView(map, canvas));
-    hud.tick();
+    if (!engine.ownsSurface) {
+      engine.frame(readView(map, canvas));
+      hud.tick();
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -201,8 +228,28 @@ async function main(): Promise<void> {
   // requestAnimationFrame is paused whenever the tab is not compositing, which makes the
   // harness unverifiable from an automation context. This lets the pipeline be stepped and
   // inspected directly: window.__spike.step(60); window.__spike.coverage().
-  (window as unknown as Record<string, unknown>)['__spike'] = {
+  const spike = {
+    /** Switch engine by index or id. */
+    use(which: number | string) {
+      const idx =
+        typeof which === 'number'
+          ? which
+          : ENGINES.findIndex((make) => {
+              const probe = make();
+              const match = probe.id === which;
+              probe.dispose();
+              return match;
+            });
+      if (idx < 0) return { error: `no engine "${which}"` };
+      engine.dispose();
+      activate(idx);
+      if (engineSel) engineSel.value = String(idx);
+      return spike.info();
+    },
     step(n = 1) {
+      if (engine.ownsSurface) {
+        return { skipped: `${engine.id} drives its own loop — step() does not apply` };
+      }
       const t0 = performance.now();
       for (let i = 0; i < n; i++) engine.frame(readView(map, canvas));
       gl.finish();
@@ -221,18 +268,42 @@ async function main(): Promise<void> {
     },
     info: () => ({
       engine: engine.label,
+      id: engine.id,
+      ownsSurface: engine.ownsSurface,
       particles: engine.actualParticleCount(),
+      primitives: engine.primitivesPerFrame?.() ?? null,
       canvas: `${canvas.width}x${canvas.height}`,
+      canvasesInDom: {
+        basemap: document.querySelectorAll('#basemap canvas').length,
+        harness: canvas.style.display === 'none' ? 0 : 1,
+        deck: document.querySelectorAll('canvas#deckgl-overlay, canvas.deck-canvas').length,
+      },
       fixture: `${field.cycle} ${field.width}x${field.height}`,
       zoom: +map.getZoom().toFixed(2),
       center: map.getCenter().toArray().map((n) => +n.toFixed(2)),
     }),
+    engines: () =>
+      ENGINES.map((make, i) => {
+        const p = make();
+        const row = { index: i, id: p.id, label: p.label, ownsSurface: p.ownsSurface };
+        p.dispose();
+        return row;
+      }),
     setCount(n: number) {
       PARAMS.particleCount = n;
       engine.setParams(PARAMS);
+      // Keep the slider and HUD honest — a scripted change that leaves the UI reading the old
+      // value makes every screenshot taken afterwards a lie.
+      const slider = document.getElementById('count') as HTMLInputElement | null;
+      if (slider) slider.value = String(n);
+      const out = document.getElementById('count-val');
+      if (out) out.textContent = n.toLocaleString();
+      reportEngine();
       return engine.actualParticleCount();
     },
   };
+
+  (window as unknown as Record<string, unknown>)['__spike'] = spike;
 }
 
 main().catch((err) => {

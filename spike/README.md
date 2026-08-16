@@ -39,18 +39,94 @@ are repainting the entire map every frame — the exact failure the pattern exis
 If no candidate clears the bar in a weekend, **stop and re-plan P1.** Do not let it bleed into
 the build.
 
+## Results so far
+
+Measured 2026-08-16, **AMD Radeon integrated graphics via ANGLE/D3D11**, 987×910 CSS px, dpr 1,
+same GFS fixture, same camera. Integrated graphics is the realistic mid-range case, not a
+flattering one.
+
+### Baseline — zero dependencies
+
+| particles | primitives | fps | p95 |
+|---:|---:|---:|---:|
+| 8,281 | 8,281 pts | 59.9 | 16.8 ms |
+| 65,536 | 65,536 pts | 59.9 | 16.9 ms |
+| 262,144 | 262,144 pts | 60.0 | 16.9 ms |
+| **1,000,000** | 1,000,000 pts | **59.9** | **16.9 ms** |
+| 2,002,225 | 2,002,225 pts | 60.0 | 17.1 ms |
+
+**Never left vsync.** Flat 60 fps to two million particles — twice the target — with p95 under
+the 20 ms bar throughout. Its actual ceiling was never found.
+
+### `maplibre-gl-wind` 0.2.1
+
+| particles | primitives (×50 trail) | fps | p95 |
+|---:|---:|---:|---:|
+| 4,096 | 204,800 | 30.0 | 33.7 ms |
+| 16,384 | 819,200 | 30.0 | 33.8 ms |
+| 65,536 | 3,276,800 | 31.7 | 33.0 ms |
+| 131,072 | 6,553,600 | 15.9 | 64.1 ms |
+| 262,144 | 13,107,200 | 7.8 | 131.3 ms |
+| 1,000,000 | 50,000,000 | *renderer hung* | — |
+
+Two distinct regimes, and conflating them would misread the library:
+
+- **Below ~3M instances it is pinned at exactly 30 fps regardless of load** — 4k and 65k
+  particles give the same 33.7 ms. That is half of 60 Hz and independent of work, so it is a
+  **scheduling cadence, not saturation**. The library is not GPU-bound there; it simply does
+  not present more often than every other frame.
+- **Above ~3M instances it is genuinely GPU-bound** and halves cleanly per doubling
+  (31.7 → 15.9 → 7.8).
+
+### The honest comparison
+
+Per *particle* the baseline is ~30× ahead, but that overstates it, because the two spend their
+budget differently. Per *primitive* they are close:
+
+```
+baseline   2,002,225 prim x 60.0 fps = 120.1M primitives/s   (still vsync-capped — not its limit)
+mgw        3,276,800 prim x 31.7 fps = 103.9M primitives/s
+mgw        6,553,600 prim x 15.9 fps = 104.2M primitives/s
+mgw       13,107,200 prim x  7.8 fps = 102.2M primitives/s
+```
+
+`maplibre-gl-wind` holds ~103M primitives/s across three points — textbook linear GPU-bound
+scaling. So **the two engines have comparable raw throughput; the entire difference is the cost
+model.** The library spends 50 primitives per particle to draw trails as real tapered geometry;
+the baseline spends 1, and gets trails free from a faded framebuffer. That is a legitimate
+design trade — deck.gl's trails survive camera movement without smearing, which the
+framebuffer approach does not — but at 50× the cost it cannot reach the 1M-particle target on
+this hardware, and it hangs the renderer trying.
+
+Other costs worth pricing in for a PWA: adding it pulled in **six deck.gl/luma.gl peers**, took
+`node_modules` from ~40 MB to 153 MB, and grew the production bundle from **1,071 kB (290 kB
+gzip) to 1,689 kB (472 kB gzip)** — +182 kB gzipped for one layer.
+
+**Provisional verdict: the baseline wins on this hardware, decisively.** Still owed before
+closing G0.4: both engines on a real phone, and `weatherlayers-gl` as a third data point.
+
 ## Candidates
 
-Edit the `ENGINES` array in `src/main.ts`. Each candidate wraps to the five-method interface in
-`src/engines/types.ts`; if a library can't be wrapped that thinly, that *is* a finding about
-integration cost and belongs in the write-up.
+Edit the `ENGINES` array in `src/main.ts`. Each candidate wraps to the interface in
+`src/engines/types.ts`; if a library can't be wrapped thinly, that *is* a finding about
+integration cost. `maplibre-gl-wind` needed a new `ownsSurface` flag added to the contract —
+see below.
 
-| Candidate | Version | License | Note |
+| Candidate | Version | License | Status |
 |---|---|---|---|
-| **Baseline** (included) | — | MIT lineage, zero deps | The `cambecc/earth` algorithm written from scratch. Both the control and the evaluation of the "just port it" option. |
-| `maplibre-gl-wind` | 0.2.1, modified 2026-08-15 | MIT | Purpose-built for MapLibre, actively developed. **Try first.** |
-| `weatherlayers-gl` | 2026.5.2 | MPL-2.0 **OR** custom terms | Mature. Read the dual-license — the alternate term exists for a reason. |
-| `deck.gl` overlay | 9.3.10 | MIT | Fallback if custom-layer integration fights you. |
+| **Baseline** | — | MIT lineage, zero deps | ✅ wired · 60 fps @ 2M |
+| **`maplibre-gl-wind`** | 0.2.1, modified 2026-08-15 | MIT | ✅ wired · 30 fps ceiling, GPU-bound past 65k |
+| `weatherlayers-gl` | 2026.5.2 | MPL-2.0 **OR** custom terms | ⬜ next. Read the dual-license — the alternate term exists for a reason. |
+| `deck.gl` raw overlay | 9.3.10 | MIT | ⬜ already installed as a transitive peer |
+
+### What the name `maplibre-gl-wind` does not tell you
+
+It is **a deck.gl layer**, not a MapLibre custom layer — `WindParticleLayer extends LineLayer`
+from `@deck.gl/layers`, with no MapLibre-native implementation at all. It is integrated here
+through `MapboxOverlay` with `interleaved: false`, so deck creates its own canvas above
+MapLibre's and the two-canvas comparison stays fair; the HUD confirms basemap repaints stay
+idle. Interleaved mode would render into MapLibre's context and repaint the whole map every
+frame, which is the failure the pattern exists to prevent.
 
 ## The fixture
 
@@ -95,26 +171,46 @@ error. A wrong decode produces garbage, not near-exact agreement at five sites.
   advected and drawn rather than the canvas being filled by a bug.
 - Production build succeeds; `tsc --noEmit` is clean.
 
-**NOT verified — and it is the whole point of the gate:**
+- **Frame rates are now real** — see Results. An earlier headless pass reported an absurd
+  31,578 fps because `requestAnimationFrame` is suspended when the tab is not compositing and
+  GL submission is async; those numbers were discarded. Everything in the Results table was
+  read off the live HUD with the window displayed.
 
-- **No frame rate has been measured.** `requestAnimationFrame` is suspended whenever the tab
-  is not compositing, and GL command submission is asynchronous, so the headless harness
-  reported an absurd 31,578 fps. That number is an artefact, not a result. **Only a human with
-  the window visible can settle this gate.**
-- Nothing on a phone.
-- No candidate library has been evaluated yet — only the baseline exists.
+**NOT verified — still owed before G0.4 closes:**
 
-## Two bugs this harness caught in its own first run
+- **Nothing on a phone.** The exit test has two halves and only one is done. The dev server
+  binds all interfaces for this; use `http://<lan-ip>:5174`.
+- **Only one hardware profile.** Integrated AMD Radeon. A discrete GPU may reorder the result,
+  though a 30× particle gap is unlikely to invert.
+- **`weatherlayers-gl` not evaluated.**
+- Pitch/tilt is disabled — the overlay projects with a flat Web Mercator transform.
 
-Recorded because both would have been blamed on a candidate library later:
+## Bugs this harness caught in itself
+
+Recorded because the first three would have been blamed on a candidate library later, and the
+fourth is the kind of thing that ships.
 
 1. **`crypto.getRandomValues()` throws above 65,536 bytes per call.** Seeding 1M particles
    needs a 4 MB buffer. Fill it in chunks.
-2. **Passing a mutable params object by reference defeats every change check.** The engine
-   held the same object the UI mutates, so `params.particleCount !== this.params.particleCount`
-   compared a value with itself and the particle-count slider silently did nothing. The engine
-   now copies. Caught only because the coverage sweep reported `actual: 1000000` for every
+2. **Passing a mutable params object by reference defeats every change check.** The engine held
+   the same object the UI mutates, so `params.particleCount !== this.params.particleCount`
+   compared a value with itself and the particle-count slider silently did nothing. Engines now
+   copy on entry. Caught only because a coverage sweep reported `actual: 1000000` for every
    requested count.
+3. **The position codec used 256 where it had to use 255 — a silent +0.392%-per-frame drift.**
+   Storing `hi = floor(p*256)/255` and reading back `hi + lo/255` reconstructs `p * 256/255`,
+   which compounds to **1.265× per second**. It does not crash or render black; particles just
+   slide uniformly southeast fast enough to swamp the actual wind, so the map shows a plausible
+   diagonal streak field and looks *almost* right. It was caught by looking at a screenshot and
+   asking why a global wind field had no gyres in it — not by any test. With 255 the round trip
+   is exact, because `floor(p*255) + fract(p*255) == p*255`.
+4. **A light basemap made a working renderer look broken.** On `positron` the particles were
+   measurably there — 7% pixel coverage — and visually almost absent. Switched to a dark style.
+   Every product in this space uses a dark ground for the same reason.
+
+One measurement caveat, not a bug: `__spike.coverage()` must be called in the same task as a
+`step()`. The context is created with `preserveDrawingBuffer: false`, so once the browser's own
+rAF loop is running, reading pixels outside a frame returns all zeros.
 
 ## Layout
 
