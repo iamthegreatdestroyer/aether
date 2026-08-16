@@ -7,7 +7,11 @@ dist/
 !.env.example
 
 # Tauri (from P6)
-src-tauri/target/
+# NOTE the leading **: a pattern containing a mid-string slash is anchored to this file's
+# directory, so plain `src-tauri/target/` would NOT match `spike/src-tauri/target/` — and that
+# directory is multiple GB of Rust build artifacts. Verified with `git check-ignore -v`.
+**/src-tauri/target/
+# Cargo.lock IS committed — this is a binary crate, not a library.
 
 # Tier B pipeline artifacts — these are generated, never committed to main.
 # Textures and PMTiles belong on the gh-pages branch or R2.
@@ -22,3 +26,8 @@ Thumbs.db
 # Spike is throwaway, but its source is worth keeping; its build output is not.
 spike/dist/
 spike/node_modules/
+
+# Benchmark output is regenerated per run and has been contaminated once by live interaction
+# with the app window. The durable record is the results table in spike/README.md, which is
+# reviewed; a raw dump that looks authoritative but may not be is worse than no dump.
+spike/src-tauri/bench-results.jsonl

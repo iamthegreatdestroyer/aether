@@ -305,6 +305,47 @@ async function main(): Promise<void> {
   };
 
   (window as unknown as Record<string, unknown>)['__spike'] = spike;
+
+  // ---- G0.6: under Tauri, benchmark ourselves and report to stdout.
+  // A native window has no console to script and no DOM reachable from outside, so the only
+  // way to get numbers out of the shipping shell is for the page to measure itself and hand
+  // the result to Rust. Detection is Tauri v2's internals marker.
+  const underTauri = '__TAURI_INTERNALS__' in window;
+  if (underTauri || new URLSearchParams(location.search).has('bench')) {
+    void (async () => {
+      const [{ runSweep }, tauri] = await Promise.all([
+        import('./bench'),
+        underTauri ? import('@tauri-apps/api/core') : Promise.resolve(null),
+      ]);
+      const emit = (tag: string, data: unknown) => {
+        const line = JSON.stringify({ tag, data });
+        if (tauri) void tauri.invoke('report', { payload: line });
+        else console.log('__BENCH__', line);
+      };
+
+      if (tauri) emit('env', await tauri.invoke('webview_info'));
+      emit('gpu', {
+        renderer: (() => {
+          const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+          return dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        })(),
+        dpr: window.devicePixelRatio,
+        canvas: `${canvas.width}x${canvas.height}`,
+      });
+
+      const rows = await runSweep(
+        spike,
+        ENGINES.map((make) => {
+          const p = make();
+          const id = p.id;
+          p.dispose();
+          return id;
+        }),
+        (row) => emit('row', row),
+      );
+      emit('done', { rows: rows.length });
+    })();
+  }
 }
 
 main().catch((err) => {

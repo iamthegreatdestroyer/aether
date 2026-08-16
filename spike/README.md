@@ -266,6 +266,87 @@ error. A wrong decode produces garbage, not near-exact agreement at five sites.
 - **`weatherlayers-gl` not evaluated.**
 - Pitch/tilt is disabled — the overlay projects with a flat Web Mercator transform.
 
+## G0.6 — does it survive Tauri's webview?
+
+Tauri does not ship a browser; it borrows the OS one. On Windows that is WebView2 (Chromium),
+so the Chrome numbers *should* carry over — but "should" is what this gate exists to remove.
+The proposal schedules desktop at P6, and discovering there that the particle core is unusable
+in the shell that ships it would invalidate five phases.
+
+Run it:
+
+```bash
+volta run --node 20.20.1 -- pnpm -C aether/spike tauri dev
+```
+
+`src-tauri/` wraps the *same* frontend — no port, no second implementation. Under Tauri the page
+detects `__TAURI_INTERNALS__`, runs the sweep itself, and pushes each row through a
+`report` command to `src-tauri/bench-results.jsonl`.
+
+Two mechanics worth recording, because both cost a cycle:
+
+- **`println!` alone loses everything.** `tauri dev` launches a detached GUI process whose
+  stdout does not reliably reach the shell that started the build. The file is the load-bearing
+  half of `report`; stdout is a convenience.
+- **The window is pinned to 987×910 and non-resizable.** That is not cosmetic — see below.
+
+### The confound that nearly produced a false finding
+
+The first run looked like a clear result: WebView2 roughly *half* Chrome's frame rate at the top
+of the range — baseline 26.8 fps where Chrome did 60.4. A tidy, plausible, publishable "Tauri
+costs you 2×".
+
+It was an artefact. The Tauri window had opened at **1920×1009** while every Chrome measurement
+was taken at **987×910** — **2.16× the pixels** on renderers that are fill-rate bound. The
+comparison was never between two webviews; it was between two canvas sizes.
+
+Two changes now make that unrepeatable: the window is pinned to exactly the canvas Chrome was
+measured at, and **every benchmark row carries its own canvas size and megapixel count**. A
+frame rate without its canvas size is not a measurement, and the harness now refuses to emit
+one.
+
+The general lesson is the same one the SondeHub `200`-with-an-error-body taught: *the dangerous
+failure is the one that returns plausible-looking data.* A crash gets investigated; a believable
+number gets written down.
+
+The *second* clean-looking run was corrupted too, differently: particle counts appeared mid-sweep
+that the sweep never sets (10,000 · 170,000 · 731,025 — slider-shaped values) and the canvas
+changed size partway through, because the app opens a real window on a real desktop that someone
+can touch. So the sweep now defends itself: controls are disabled behind a warning banner while
+it runs, the count is re-asserted immediately before each reading, and **every row carries
+`wanted` vs actual plus a `trusted` flag with a reason**. Untrusted rows are reported, never
+averaged in.
+
+### Result — WebView2 vs Chrome, identical canvas (987×910), same GPU
+
+Tauri 2.11.5 · WebView2 151.0.4129.86 · Windows x86_64 · 9/9 rows trusted, single canvas size.
+
+| engine | primitives | Chrome | WebView2 | Δ fps |
+|---|---:|---|---|---:|
+| **baseline** | 205,209 | 60.0 fps · 17.0 ms | 59.9 · 17.0 ms | **−0.2 %** |
+| **baseline** | 820,836 | 59.9 · 17.0 ms | 60.0 · 17.0 ms | **+0.2 %** |
+| **baseline** | 3,279,721 | 60.4 · 19.6 ms | 59.9 · 17.0 ms | **−0.8 %** |
+| maplibre-gl-wind | 204,800 | 30.0 · 35.8 ms | 30.9 · 35.9 ms | +3.0 % |
+| maplibre-gl-wind | 819,200 | 30.0 · 34.6 ms | 30.0 · 35.6 ms | 0.0 % |
+| maplibre-gl-wind | 3,276,800 | 33.8 · 34.4 ms | 28.6 · 37.9 ms | −15.4 % |
+| weatherlayers-gl | 204,800 | 60.0 · 17.1 ms | 59.8 · 17.9 ms | −0.3 % |
+| weatherlayers-gl | 819,200 | 38.3 · 28.9 ms | 32.4 · **60.7 ms** | −15.4 % |
+| weatherlayers-gl | 3,276,800 | 11.9 · 92.2 ms | 11.4 · **166.6 ms** | −4.2 % |
+
+**G0.6 passes, and the answer is boring in the best way.** The chosen engine is within ±1 % of
+Chrome across the whole range — at the top it is actually *smoother* in WebView2 (p95 17.0 ms
+vs 19.6 ms). WebView2 is Chromium, and for this workload it behaves like Chromium.
+
+The two libraries we are not choosing show more spread, and the interesting part is not the fps
+column but the **p95 tails**: `weatherlayers-gl` roughly doubles its worst-frame time under
+WebView2 (28.9 → 60.7 ms, 92.2 → 166.6 ms) while its average holds up. Had one of those been
+the pick, "same average, twice the stutter" is exactly the kind of thing that would have been
+discovered at P6 with five phases already built on it.
+
+**Scope of this result:** Windows only. macOS (WKWebView) and Linux (WebKitGTK) are untested and
+must not be inferred from it — WebKitGTK in particular is the platform where a GPU particle
+layer can silently land on software rendering.
+
 ## Bugs this harness caught in itself
 
 Recorded because the first three would have been blamed on a candidate library later, and the
