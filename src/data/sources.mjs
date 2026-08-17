@@ -95,6 +95,7 @@ export const SOURCES = [
     id: 'librewxr',
     name: 'LibreWXR',
     role: 'PRIMARY radar + 2h nowcast + GMGSI satellite + global alerts',
+    baseUrl: 'https://api.librewxr.net/public/weather-maps.json',
     probeUrl: 'https://api.librewxr.net/public/weather-maps.json',
     tier: 'A',
     cors: 'open',
@@ -113,6 +114,7 @@ export const SOURCES = [
     id: 'rainviewer',
     name: 'RainViewer (fallback 1)',
     role: 'Radar fallback',
+    baseUrl: 'https://api.rainviewer.com/public/weather-maps.json',
     probeUrl: 'https://api.rainviewer.com/public/weather-maps.json',
     tier: 'A',
     cors: 'open',
@@ -130,6 +132,8 @@ export const SOURCES = [
     id: 'iem-nexrad',
     name: 'Iowa State IEM NEXRAD WMS-T (fallback 2)',
     role: 'US radar fallback + archive to 1995',
+    // Tile cache root (TMS). The -m05m..-m50m suffixed layers give a 50-minute loop.
+    baseUrl: 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0',
     probeUrl:
       'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi?service=WMS&request=GetCapabilities',
     tier: 'A',
@@ -145,6 +149,7 @@ export const SOURCES = [
     id: 'nasa-gibs',
     name: 'NASA GIBS WMTS',
     role: 'Satellite imagery (GOES GeoColor, Himawari B13, MODIS/VIIRS)',
+    baseUrl: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best',
     probeUrl:
       'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/WMTSCapabilities.xml',
     tier: 'A',

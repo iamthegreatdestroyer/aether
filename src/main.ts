@@ -22,6 +22,9 @@ import { addLocation, loadLocations, locationKey, removeLocation } from './ui/lo
 import type { SavedLocation } from './ui/locations';
 import { buildSourcesDialog, renderFooter } from './ui/attribution';
 import { WindLayer } from './particles/windLayer';
+import { RadarLayer } from './layers/radar';
+import { SatelliteLayer } from './layers/satellite';
+import { blockedSources, setBlockedSources } from './data/fetcher';
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -233,6 +236,95 @@ if (window.matchMedia('(hover: hover)').matches) {
   });
 }
 
+// ---------------------------------------------------------------- radar + satellite
+
+const radar = new RadarLayer(map);
+const satellite = new SatelliteLayer(map);
+const radarToggle = document.getElementById('radar-toggle') as HTMLButtonElement;
+const satToggle = document.getElementById('sat-toggle') as HTMLButtonElement;
+const timeline = document.getElementById('timeline') as HTMLDivElement;
+const tlPlay = document.getElementById('tl-play') as HTMLButtonElement;
+const tlScrub = document.getElementById('tl-scrub') as HTMLInputElement;
+const tlLabel = document.getElementById('tl-label') as HTMLSpanElement;
+const tlProvider = document.getElementById('tl-provider') as HTMLSpanElement;
+
+const RADAR_PREF = 'aether.radar';
+const SAT_PREF = 'aether.sat';
+
+function renderTimeline(): void {
+  const s = radar.state;
+  timeline.hidden = !s.enabled;
+  radarToggle.classList.toggle('is-on', s.enabled);
+  if (!s.enabled) return;
+
+  tlScrub.max = String(Math.max(0, s.frames.length - 1));
+  tlScrub.value = String(s.frameIndex);
+  tlPlay.textContent = s.playing ? '⏸' : '▶';
+
+  const frame = s.frames[s.frameIndex];
+  if (frame) {
+    const t = new Date(frame.time * 1000).toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    tlLabel.textContent = frame.future ? `+${t}` : t;
+    tlLabel.classList.toggle('is-future', frame.future);
+  }
+  // The provider badge is the failover chain's honesty surface: amber when running on a
+  // fallback, so degraded coverage (RainViewer zoom cap, IEM CONUS-only) is never silent.
+  tlProvider.textContent = s.providerLabel;
+  tlProvider.classList.toggle('is-fallback', s.provider !== 'librewxr');
+}
+radar.onChange = renderTimeline;
+
+async function setRadar(on: boolean): Promise<void> {
+  try {
+    if (on) await radar.enable();
+    else radar.disable();
+    localStorage.setItem(RADAR_PREF, on ? 'on' : 'off');
+  } catch (err) {
+    radarToggle.title = err instanceof Error ? err.message : String(err);
+    radarToggle.classList.add('is-error');
+    console.error('[radar]', err);
+  }
+  renderTimeline();
+}
+
+function setSat(on: boolean): void {
+  try {
+    if (on) satellite.enable();
+    else satellite.disable();
+    satToggle.classList.toggle('is-on', satellite.isEnabled);
+    satToggle.title = satellite.date
+      ? `VIIRS true color, ${satellite.date} (daily imagery lags ~1 day)`
+      : 'Toggle the satellite layer';
+    localStorage.setItem(SAT_PREF, on ? 'on' : 'off');
+  } catch (err) {
+    console.error('[satellite]', err);
+  }
+}
+
+radarToggle.addEventListener('click', () => void setRadar(!radar.state.enabled));
+satToggle.addEventListener('click', () => setSat(!satellite.isEnabled));
+tlPlay.addEventListener('click', () => radar.setPlaying(!radar.state.playing));
+tlScrub.addEventListener('input', () => {
+  radar.setPlaying(false);
+  radar.setFrame(Number(tlScrub.value));
+});
+
+// Layers wait for the STYLE, not the map's `load` event — deliberately. `load` fires after
+// the first render, and rendering requires the tab to be compositing; a backgrounded or
+// hidden tab would never enable the radar at all. `style.load` is network-driven and fires
+// regardless. (Found because the headless verification hung exactly there.)
+function whenStyleReady(fn: () => void): void {
+  if (map.isStyleLoaded()) fn();
+  else map.once('style.load', fn);
+}
+whenStyleReady(() => {
+  if (localStorage.getItem(RADAR_PREF) !== 'off') void setRadar(true);
+  if (localStorage.getItem(SAT_PREF) === 'on') setSat(true);
+});
+
 // ---------------------------------------------------------------- chrome
 
 const sourcesDialog = buildSourcesDialog();
@@ -277,4 +369,19 @@ if ('serviceWorker' in navigator) {
   sampleWind: (lng: number, lat: number) => windLayer.sampleWind(lng, lat),
   /** Headless render proof — see WindLayer.debugStep. */
   windStep: (n?: number) => windLayer.debugStep(n),
+  radar: () => radar.state,
+  radarSetFrame: (i: number) => radar.setFrame(i),
+  radarRefresh: () => radar.refresh(),
+  satellite: () => ({ enabled: satellite.isEnabled, date: satellite.date }),
+  /** Dev outage simulation for the failover exit test: block(['librewxr']), then radarRefresh(). */
+  block: (ids: string[]) => {
+    setBlockedSources(ids);
+    return [...blockedSources()];
+  },
+  mapLayers: () =>
+    map.getStyle().layers.filter((l) => l.id.startsWith('radar-') || l.id === 'satellite')
+      .map((l) => ({
+        id: l.id,
+        opacity: map.getPaintProperty(l.id, 'raster-opacity'),
+      })),
 };

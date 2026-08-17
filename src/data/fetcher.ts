@@ -16,6 +16,10 @@
 
 const MIN_INTERVAL_MS: Record<string, number> = {
   'open-meteo': 1_000,
+  // Index JSON only — the tiles themselves are loaded by MapLibre, not through here.
+  librewxr: 2_000,
+  rainviewer: 2_000, // their hard cap is 100 req/IP/min; one index call is nothing
+  'iem-nexrad': 2_000,
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];
@@ -52,7 +56,31 @@ export class FetchError extends Error {
   }
 }
 
+/**
+ * Dev outage simulation. `__aether.block(['librewxr'])` persists a blocklist that makes
+ * fetchJson fail for those sources at the network layer — which is the honest way to
+ * exercise the radar failover chain (the P2 exit test): the provider's real error path runs,
+ * not a mock of it. Empty in normal use; survives reload so the chain's cold-boot behaviour
+ * under outage is testable too.
+ */
+const BLOCK_KEY = 'aether.blockSources';
+
+export function blockedSources(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(BLOCK_KEY) ?? '[]') as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+export function setBlockedSources(ids: string[]): void {
+  localStorage.setItem(BLOCK_KEY, JSON.stringify(ids));
+}
+
 export async function fetchJson<T>(sourceId: string, url: string): Promise<T> {
+  if (blockedSources().has(sourceId)) {
+    throw new FetchError(url, null, `${sourceId} blocked (dev outage simulation)`);
+  }
   // In-flight dedupe first: identical concurrent requests collapse to one.
   const existing = inflight.get(url);
   if (existing) return existing as Promise<T>;

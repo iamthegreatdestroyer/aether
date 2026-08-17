@@ -21,9 +21,18 @@
     <header id="topbar">
       <h1>AETHER</h1>
       <span class="hint">click the map to add a location</span>
+      <button id="radar-toggle" title="Toggle the radar layer">◉ Radar</button>
+      <button id="sat-toggle" title="Toggle the satellite layer">🛰 Sat</button>
       <button id="wind-toggle" title="Toggle the wind particle layer">〰 Wind</button>
       <button id="refresh" title="Refresh all forecasts">↻ Refresh</button>
     </header>
+
+    <div id="timeline" hidden>
+      <button id="tl-play" title="Play / pause the radar loop">⏸</button>
+      <input id="tl-scrub" type="range" min="0" max="0" value="0" step="1" />
+      <span id="tl-label"></span>
+      <span id="tl-provider" title="Active radar provider"></span>
+    </div>
 
     <section id="cards" aria-label="Saved locations"></section>
 
