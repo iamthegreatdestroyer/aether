@@ -14,7 +14,17 @@ import './app.css';
 import { source } from './data/sources.mjs';
 import { fetchForecast } from './data/openmeteo';
 import type { ForecastData } from './data/openmeteo';
-import { ledgerCount, loadLatest, logForecast, saveLatest } from './data/ledger';
+import {
+  fetchLedgerForecast,
+  ledgerCount,
+  loadLatest,
+  logForecast,
+  saveLatest,
+  shouldLog,
+} from './data/ledger';
+import { captureObservations } from './data/observations';
+import { runScorer, summarize } from './data/scorer';
+import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { registerLayer } from './layers/registry';
 import { renderCard } from './ui/forecastCard';
 import type { CardState } from './ui/forecastCard';
@@ -146,18 +156,23 @@ async function hydrateLocation(loc: SavedLocation): Promise<void> {
     const fetchedAt = Date.now();
     setCardState(loc, { data, fetchedAt, stale: false, error: null });
     await saveLatest(key, data);
-    // The ledger writes on the same fetch path as the display — receipts from first install.
-    await logForecast({
-      locationKey: key,
-      name: loc.name,
-      lat: loc.lat,
-      lon: loc.lon,
-      fetchedAt,
-      sourceId: 'open-meteo',
-      model: 'best_match',
-      hourly: data.hourly,
-      daily: data.daily,
-    });
+    // The ledger writes on the same fetch path as the display — receipts from first
+    // install. v2: a separate hourly-only multi-model fetch (UTC), made only when the
+    // hourly guard will actually accept the entry, so the extra call never runs for spam.
+    if (shouldLog(key, fetchedAt)) {
+      const models = await fetchLedgerForecast(loc);
+      await logForecast({
+        locationKey: key,
+        name: loc.name,
+        lat: loc.lat,
+        lon: loc.lon,
+        fetchedAt,
+        sourceId: 'open-meteo',
+        models,
+      });
+    }
+    // Truth side: capture whatever observations exist for this location, then score.
+    await captureObservations(loc).catch(() => []);
   } catch (err) {
     // A failed refresh with a snapshot on screen is not an error state — the badge already
     // says "cached". Only surface the failure when there is nothing at all to show.
@@ -169,6 +184,9 @@ async function hydrateLocation(loc: SavedLocation): Promise<void> {
 
 function refreshAll(): void {
   for (const loc of locations) void hydrateLocation(loc);
+  // Score after the hydrates have had a chance to capture fresh truth. Fire-and-forget on a
+  // delay rather than awaited — scoring is bookkeeping, never in the render path.
+  window.setTimeout(() => void runScorer(), 20_000);
 }
 
 // ---------------------------------------------------------------- wind layer
@@ -331,6 +349,11 @@ const sourcesDialog = buildSourcesDialog();
 renderFooter(document.getElementById('footer')!, () => sourcesDialog.showModal());
 document.getElementById('refresh')!.addEventListener('click', refreshAll);
 
+const receiptsDialog = buildReceiptsDialog();
+document.getElementById('receipts-toggle')!.addEventListener('click', () => {
+  void renderReceipts(receiptsDialog, locations).then(() => receiptsDialog.showModal());
+});
+
 // ---------------------------------------------------------------- boot
 
 renderCards();
@@ -370,6 +393,12 @@ if ('serviceWorker' in navigator) {
   /** Headless render proof — see WindLayer.debugStep. */
   windStep: (n?: number) => windLayer.debugStep(n),
   radar: () => radar.state,
+  score: () => runScorer(),
+  summary: (lk: string) => summarize(lk),
+  captureObs: (i = 0) => {
+    const loc = locations[i];
+    return loc ? captureObservations(loc) : Promise.resolve([]);
+  },
   radarSetFrame: (i: number) => radar.setFrame(i),
   radarRefresh: () => radar.refresh(),
   satellite: () => ({ enabled: satellite.isEnabled, date: satellite.date }),

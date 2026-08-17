@@ -8,12 +8,22 @@
  */
 
 const DB_NAME = 'aether';
-const DB_VERSION = 1;
+// v3, not v2, and the reason is a durable lesson: during development, HMR opened the DB at
+// v2 in the window between "version bumped" and "store creation written", permanently
+// consuming the upgrade event with only the old stores present. onupgradeneeded never
+// re-fires at the same version, so any DB in that state is stuck. The handler below is
+// contains()-guarded and therefore idempotent — bumping the version is always safe and is
+// the correct recovery for exactly this situation.
+const DB_VERSION = 3;
 
 /** Append-only fetch-time forecast log. The verification ledger scores it at T+1 (P3). */
 export const STORE_FORECAST_LOG = 'forecast_log';
 /** Latest forecast per location — what a fresh offline boot renders from. */
 export const STORE_LATEST = 'latest';
+/** Captured observations — the truth side of the ledger. Keyed `${locationKey}|${isoHour}`. */
+export const STORE_OBS = 'obs';
+/** Scores — one per (entry, model, valid hour), keyed deterministically so rescoring is idempotent. */
+export const STORE_SCORES = 'scores';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -21,6 +31,8 @@ function open(): Promise<IDBDatabase> {
   dbPromise ??= new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
+      // Additive-only migrations: v1 stores are never touched, so P0-era receipts survive
+      // every upgrade — an append-only ledger that loses history on migration is not one.
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_FORECAST_LOG)) {
         const log = db.createObjectStore(STORE_FORECAST_LOG, { autoIncrement: true });
@@ -28,6 +40,14 @@ function open(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_LATEST)) {
         db.createObjectStore(STORE_LATEST);
+      }
+      if (!db.objectStoreNames.contains(STORE_OBS)) {
+        const obs = db.createObjectStore(STORE_OBS);
+        obs.createIndex('by_location', 'locationKey');
+      }
+      if (!db.objectStoreNames.contains(STORE_SCORES)) {
+        const scores = db.createObjectStore(STORE_SCORES);
+        scores.createIndex('by_location', 'locationKey');
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -62,4 +82,31 @@ export function dbGet<T>(store: string, key: IDBValidKey): Promise<T | undefined
 
 export function dbCount(store: string): Promise<number> {
   return tx(store, 'readonly', (s) => s.count());
+}
+
+export function dbGetAllByIndex<T>(
+  store: string,
+  index: string,
+  key: IDBValidKey,
+): Promise<T[]> {
+  return tx(store, 'readonly', (s) => s.index(index).getAll(key) as IDBRequest<T[]>);
+}
+
+/** Entries WITH their keys — getAll() drops keys, and the scorer needs entry ids. */
+export function dbEntries<T>(store: string): Promise<Array<{ key: IDBValidKey; value: T }>> {
+  return open().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const out: Array<{ key: IDBValidKey; value: T }> = [];
+        const cur = db.transaction(store, 'readonly').objectStore(store).openCursor();
+        cur.onsuccess = () => {
+          const c = cur.result;
+          if (c) {
+            out.push({ key: c.key, value: c.value as T });
+            c.continue();
+          } else resolve(out);
+        };
+        cur.onerror = () => reject(cur.error ?? new Error('cursor failed'));
+      }),
+  );
 }

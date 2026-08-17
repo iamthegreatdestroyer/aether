@@ -47,7 +47,8 @@ export const SOURCES = [
   {
     id: 'nws-points',
     name: 'NWS api.weather.gov (points)',
-    role: 'US gridpoint resolution',
+    role: 'US gridpoint resolution + station observations (the truth side of the ledger in the US)',
+    baseUrl: 'https://api.weather.gov',
     probeUrl: 'https://api.weather.gov/points/40.7,-74.0',
     tier: 'A',
     cors: 'open',
@@ -343,6 +344,7 @@ export const SOURCES = [
     id: 'sensor-community',
     name: 'Sensor.Community',
     role: 'Hyperlocal obs + PM for Smoke Story and the ledger',
+    baseUrl: 'https://data.sensor.community/airrohr/v1/filter',
     probeUrl:
       'https://data.sensor.community/airrohr/v1/filter/box=52.4,13.3,52.6,13.5',
     tier: 'A',
