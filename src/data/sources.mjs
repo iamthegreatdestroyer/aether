@@ -166,6 +166,7 @@ export const SOURCES = [
   // ------------------------------------------------------------ space weather
   {
     id: 'swpc-kp-estimate',
+    baseUrl: 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json',
     name: 'SWPC planetary K index (ESTIMATE)',
     role: 'Solar Chain — Kp strip, browser-reachable path',
     probeUrl: 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json',
@@ -201,6 +202,7 @@ export const SOURCES = [
   },
   {
     id: 'swpc-wind-summary',
+    baseUrl: 'https://services.swpc.noaa.gov/products/summary/solar-wind-speed.json',
     name: 'SWPC solar wind speed (summary)',
     role: 'Solar Chain — DEFAULT live solar-wind value',
     probeUrl: 'https://services.swpc.noaa.gov/products/summary/solar-wind-speed.json',
@@ -219,6 +221,7 @@ export const SOURCES = [
   },
   {
     id: 'swpc-mag-summary',
+    baseUrl: 'https://services.swpc.noaa.gov/products/summary/solar-wind-mag-field.json',
     name: 'SWPC IMF Bt/Bz (summary)',
     role: 'Solar Chain — DEFAULT live IMF value',
     probeUrl: 'https://services.swpc.noaa.gov/products/summary/solar-wind-mag-field.json',
@@ -300,6 +303,7 @@ export const SOURCES = [
   },
   {
     id: 'ovation-aurora',
+    baseUrl: 'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json',
     name: 'NOAA OVATION aurora',
     role: 'Solar Chain — auroral oval, crossed with cloud forecast',
     probeUrl: 'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json',
@@ -319,6 +323,7 @@ export const SOURCES = [
   // ------------------------------------------------------------ observations
   {
     id: 'sondehub',
+    baseUrl: 'https://api.v2.sondehub.org',
     name: 'SondeHub v2',
     role: 'Balloon Truth — live radiosonde ascents',
     probeUrl: 'https://api.v2.sondehub.org/sondes/telemetry?duration=1h',

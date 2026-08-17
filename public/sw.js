@@ -14,7 +14,12 @@
  *    PMTiles, not an accidental tile hoard.
  */
 
-const CACHE = 'aether-shell-v1';
+// v2: cache name bumped to evict every v1 cache. v1 had a real bug found during P4: it
+// cache-first'd ALL same-origin assets, but only Vite's /assets/* files are content-hashed
+// and immutable — in dev that meant /src/main.ts was served stale from cache on every fresh
+// reload, silently pinning the app to an old build while HMR masked it during editing.
+// Cache-first is a claim about immutability; make it only where the filename proves it.
+const CACHE = 'aether-shell-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
@@ -50,18 +55,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Same-origin assets: cache-first (Vite-hashed files are immutable), fill on first fetch.
+  // Hashed build assets ONLY: cache-first, because the hash in the name proves immutability.
+  if (url.pathname.includes('/assets/')) {
+    event.respondWith(
+      caches.match(event.request).then(
+        (hit) =>
+          hit ??
+          fetch(event.request).then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(event.request, copy));
+            }
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+
+  // Everything else same-origin (manifest, icons, wind texture, dev module URLs):
+  // network-first with cache fallback — fresh when online, still present offline.
   event.respondWith(
-    caches.match(event.request).then(
-      (hit) =>
-        hit ??
-        fetch(event.request).then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(event.request, copy));
-          }
-          return res;
-        }),
-    ),
+    fetch(event.request)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(event.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request).then((hit) => hit ?? Response.error())),
   );
 });

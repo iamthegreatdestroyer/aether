@@ -25,6 +25,9 @@ import {
 import { captureObservations } from './data/observations';
 import { runScorer, summarize } from './data/scorer';
 import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
+import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
+import { fetchOvation, sampleAurora } from './data/space';
+import { balloonTruth } from './data/sondes';
 import { registerLayer } from './layers/registry';
 import { renderCard } from './ui/forecastCard';
 import type { CardState } from './ui/forecastCard';
@@ -354,6 +357,13 @@ document.getElementById('receipts-toggle')!.addEventListener('click', () => {
   void renderReceipts(receiptsDialog, locations).then(() => receiptsDialog.showModal());
 });
 
+const spaceDialog = buildSpaceDialog();
+document.getElementById('space-toggle')!.addEventListener('click', () => {
+  spaceDialog.showModal(); // open immediately with the loading state…
+  void renderSpace(spaceDialog, locations); // …then fill as the chain arrives
+});
+spaceDialog.addEventListener('close', stopSpacePolling);
+
 // ---------------------------------------------------------------- boot
 
 renderCards();
@@ -398,6 +408,12 @@ if ('serviceWorker' in navigator) {
   captureObs: (i = 0) => {
     const loc = locations[i];
     return loc ? captureObservations(loc) : Promise.resolve([]);
+  },
+  /** P4 verification: aurora probability anywhere (loads OVATION on first call). */
+  auroraAt: (lat: number, lon: number) => fetchOvation().then(() => sampleAurora(lat, lon)),
+  balloonTruth: (i = 0) => {
+    const loc = locations[i];
+    return loc ? balloonTruth(loc) : Promise.resolve(null);
   },
   radarSetFrame: (i: number) => radar.setFrame(i),
   radarRefresh: () => radar.refresh(),
