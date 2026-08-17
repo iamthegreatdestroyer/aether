@@ -376,3 +376,38 @@ ledger — noted as an upgrade candidate.
    existing cron.
 5. **Manifest `screenshots`** — both Windy and Aether currently lack them (their DevTools
    showed the same richer-install warning ours gets). Trivial PWA polish.
+
+### 9.1 Runtime introspection — the fast path (2026-08-17)
+
+Clicking feature-by-feature is the slow way to survey a competitor. Windy's plugin API is a
+documented, public global (`window.W`), so the capability surface can be *queried* instead:
+46 models and 68 overlays enumerated in three calls, no UI walking. Recorded here because the
+technique generalises to any SPA competitor review.
+
+**Measured scale (their real numbers, not marketing):**
+
+| | |
+|---|---|
+| Models | **46 total** — 18 global, 28 regional. Finest: AROME-HD **1.3 km**, ACCESS-C 1.5 km, HRRR 3 km |
+| Global backbone | ECMWF 9 km / GFS 22 km (fh 360 h) / ICON 13 km / meteoblue AI, all 12-hourly |
+| Overlays | **68** registered |
+| Vertical levels | **16** per model: surface, 100 m, 950/925/900/850/800/700/600/500/400/300/250/200/150/10 hPa |
+| ECMWF overlays | 27 variables at those levels |
+
+**Architecture confirmed** (`W.TileLayerUtils` exposes `decodeHeader` / `decodeImage`;
+`W.interpolator` exposes `getLatLonInterpolator` / `getXYInterpolator`): values ship as encoded
+RGBA raster tiles, are decoded client-side, and the picker interpolates from the same decoded
+texture the map draws. **This is exactly Aether's P1 pipeline** — our GFS→PNG→shader path and
+`sampleWind()` reading the same texels is the same design, arrived at independently and
+already validated to ±1.13 m/s against Open-Meteo.
+
+**Colour technique** (not their table — that is their design work, and we build our own ramp):
+value→RGBA lookup precomputed to **2048 steps**, anchored on meteorologically meaningful
+breakpoints with a deliberate discontinuity at 273.15 K so freezing reads instantly. That
+anchoring convention is the transferable idea for our scalar layer.
+
+**Scope note:** this was capability reconnaissance against the page as served — feature
+surface, architecture, conventions. No weather data was extracted; the research's standing
+rule (never scrape Windy/Ventusky model data, which is licensed to them) is unaffected and
+still holds. One introspection call was blocked by the browser tooling for containing
+token-like strings; it was not worked around.
