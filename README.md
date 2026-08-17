@@ -4,21 +4,18 @@ A free, personal-use weather app: Windy-class visualization, a forecast-verifica
 that compounds with use, and the atmosphere-to-space chain nobody fuses. **$0/month, no
 backend, no accounts, no ads.**
 
-> **Status: P0 shipped.** The PWA skeleton is live: MapLibre 5.24.0 (pinned per ADR 0001) on
-> the OpenFreeMap dark basemap, Open-Meteo forecast cards for saved locations (add by clicking
-> the map, capped at 10), a Data Sources screen rendered from the contract, offline-first boot
-> from IndexedDB snapshots, a service worker, and — live from first install — the verification
-> ledger's write path logging every forecast at fetch time with the full 168-point hourly grid
-> the P3 scorer will need.
+> **Status: P0–P4 shipped, live at
+> [iamthegreatdestroyer.github.io/aether](https://iamthegreatdestroyer.github.io/aether/).**
+> Forecast cards with offline-first boot · million-particle wind map (60 fps on a Galaxy S25+
+> at the full 1M count) · LibreWXR radar with nowcast frames and a recovering
+> RainViewer→IEM failover chain · VIIRS satellite · four-model forecast receipts scored
+> against real observations (*Who Was Right?*) · atmosphere-to-space panel with live
+> radiosondes (*Balloon Truth*). Tier B runs on GitHub Actions: wind textures refresh
+> 6-hourly, the endpoint contract is probed daily.
 >
 > ```bash
 > volta run --node 20.20.1 -- pnpm -C aether dev   # http://localhost:5175
 > ```
->
-> Verified boot trace (dev, warm snapshot): all cards render **stale-from-snapshot at t≈92 ms**
-> before any network response — the offline path exercised on every boot, not a special mode —
-> then refresh fresh at t=266/1280/2287 ms, the ~1 s spacing being the fetch scheduler's
-> per-source politeness chain doing its job visibly.
 
 Full plan: [`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md).
 Source research: `../Kimi_Agent_Free Weather App Proposals/`.
@@ -76,5 +73,5 @@ called that healthy.
 
 ## Next
 
-Gate items G0.1 (Node ≥ 20 on PATH), G0.4 (particle-engine spike), then P0.
-See [`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md) §2 and §8.
+P5 (Confidence Cone + IFS-vs-AIFS divergence layer) and P6 (Tauri desktop, de-risked by
+G0.6) remain. See [`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md).
