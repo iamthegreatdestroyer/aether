@@ -329,3 +329,50 @@ Then P0 starts, and the report's roadmap runs as written.
 All endpoint status in §0 and §4 measured 2026-08-16 via `curl` GET with `Origin: https://aether.example` and an identifying User-Agent, reading the response code and `Access-Control-Allow-Origin` header. Library versions, publish dates, licenses and peer dependencies read from the live npm registry the same day. Toolchain versions read from this machine.
 
 One method note worth keeping: an initial pass using `curl -I` (HEAD) reported *no CORS header* for SondeHub and met.no. Re-probing with GET showed `Access-Control-Allow-Origin: *` on both. **HEAD is not a reliable CORS probe** — the probe script in G0.3 must use GET.
+
+
+---
+
+## 9. Live Windy.com reconnaissance — 2026-08-17, driven hands-on in the owner's Chrome
+
+Windy v51.1.1 (built 2026-08-11), explored feature-by-feature. One claim of ours corrected,
+several confirmed, and a P-next shortlist extracted.
+
+### Claim correction (Pattern-12 applies to our own research too)
+
+**"Live radiosonde overlays exist nowhere in consumer apps" is FALSE as stated.** Windy has a
+`Radiosondes` overlay: WMO launch sites on the map, per-ascent temp/dewpoint profiles with
+wind barbs, skew-T toggle, derived indices (tcon/ccl/lcl), nearest-station cards, GeoJSON
+download. Source: **NOAA MADIS**, fm35/netCDF, post-ascent.
+
+**What survives, narrower and still real:** (1) nobody — including Windy — overlays the
+MODEL's predicted sounding against the measurement; the diff IS Balloon Truth's novelty.
+(2) SondeHub streams ascents LIVE mid-flight incl. amateur launches; MADIS is post-ascent
+official sites only. (3) MADIS is a better US obs source than our NWS-station chain for the
+ledger — noted as an upgrade candidate.
+
+### Confirmed by direct observation
+
+- **No space weather anywhere** in the ~60-layer catalog. No aurora, no Kp. Solar Chain's
+  whitespace holds.
+- **Compare forecasts = stacked parallel strips, no verification.** ECMWF 88° vs GFS 95° for
+  the same Tuesday, presented without an arbiter. *Who Was Right?* remains unoccupied.
+- **New: "AI-enhanced forecast" modal** — meteoblue-powered blend now pushed as the
+  recommended default over "Classic". Their trust story is "believe our blend"; ours is
+  receipts. These are opposite bets, and ours is the one they structurally cannot copy.
+- **Per-day confidence percentages** (Mon 70%, Tue 60%…) in the forecast header — a shipped,
+  lightweight ensemble-spread signal. Validates P5's Confidence Cone direction.
+
+### P-next shortlist extracted from the session
+
+1. **Scalar field under the particles** — Windy's signature look is particles OVER a colored
+   temp/precip raster. Our two-canvas split already supports it (scalar = one more raster in
+   MapLibre; Tier B already renders PNG textures). Highest visual payoff per effort.
+2. **Display-side model switcher fused with receipts** — Windy's pinned ECMWF/GFS/ICON picker,
+   plus the one thing theirs can't show: per-model MAE at YOUR location, in the picker.
+3. **Unified time axis** — Windy's timeline drives every layer at once; ours scrubs only
+   radar. Architectural upgrade worth doing before more time-aware layers accumulate.
+4. **Altitude levels** — same GFS file, more bands (850/500/300 hPa U/V textures) in the
+   existing cron.
+5. **Manifest `screenshots`** — both Windy and Aether currently lack them (their DevTools
+   showed the same richer-install warning ours gets). Trivial PWA polish.
