@@ -100,6 +100,15 @@ export class WindLayer {
     this.qualityIndex = coarse ? 2 : 1; // 250k on phones, 500k on desktop
     // Trails smear under camera motion; clearing at gesture start reads as intentional.
     map.on('movestart', () => this.engine?.clearTrails());
+    // Legibility at world scale: a million trails over the whole planet bury the basemap
+    // (desktop screenshot, 2026-08-18). Fade the CANVAS by zoom — 0.55 at z<=2.5 ramping to
+    // full by z5 — so the map reads through without touching the engine's physics.
+    const legibility = () => {
+      const z = map.getZoom();
+      this.canvas.style.opacity = String(Math.min(1, 0.55 + Math.max(0, z - 2.5) * 0.18));
+    };
+    map.on('zoom', legibility);
+    legibility();
   }
 
   async start(): Promise<void> {

@@ -858,3 +858,14 @@ CC BY-NC — deliberately avoided since P0); the pin is named "📍 Home", which
 Verified with stubbed geolocation: first pin lands front + hydrates live; re-pin at new
 coords updates the SAME entry (1 home, count stable); denied/unavailable/timeout each get
 an honest alert.
+
+### 11.2 One-world zoom floor + particle legibility — FIXED 2026-08-18 (owner screenshot)
+
+The desktop screenshot showed two compounding zoom-out bugs: MapLibre happily renders
+WRAPPED world copies on wide windows while the particle engine draws exactly one world —
+dead, unlit map on the flanks — and at world scale a million trails bury the basemap
+entirely. Fixes: (1) dynamic minZoom pinned to the container — width = 512·2^z, recomputed
+on resize — so one world always exactly fills the viewport and wrapping is structurally
+impossible; (2) the wind CANVAS fades by zoom (0.55 at ≤z2.5 → 1.0 by z5), so the map reads
+through at world scale without touching engine physics. Verified: world px ≥ viewport at
+the floor, opacity ramp live.

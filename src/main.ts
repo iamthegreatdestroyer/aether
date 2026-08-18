@@ -112,6 +112,17 @@ const map = new maplibregl.Map({
   attributionControl: { compact: true },
 });
 
+// One world must always fill the viewport width. The particle engine draws exactly one
+// world copy, so any zoom that lets MapLibre wrap extra copies leaves dead, unlit map on
+// the flanks (desktop screenshot, 2026-08-18). minZoom follows the container: width px =
+// 512 * 2^z  =>  z = log2(width / 512), recomputed on resize.
+function fitMinZoom(): void {
+  const w = map.getContainer().clientWidth;
+  map.setMinZoom(Math.max(0, Math.log2(Math.max(256, w) / 512)));
+}
+fitMinZoom();
+map.on('resize', fitMinZoom);
+
 function syncMarkers(): void {
   for (const [id, marker] of markers) {
     if (!locations.some((l) => l.id === id)) {
