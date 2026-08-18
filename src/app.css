@@ -434,3 +434,32 @@ html, body {
 .fire-popup .maplibregl-popup-tip { border-top-color: #1a2030; border-bottom-color: #1a2030; }
 .fire-popup .maplibregl-popup-close-button { color: #8a93a6; font-size: 14px; }
 .fire-popup-ray { color: var(--muted, #8a93a6); }
+
+/* ---- phone layout: the toolbar must never widen the page ----
+   Measured on a Galaxy S25+ (2026-08-18): 14 buttons in one non-wrapping row made the
+   header 1186px on a 411px screen, which dragged documentElement.scrollWidth — and with it
+   the layout viewport — out to 1186px. Everything else then rendered as if the phone were a
+   tablet. Containing the overflow INSIDE the bar fixes the page, and a horizontally
+   scrollable strip keeps every control reachable without stealing map height. */
+@media (max-width: 700px) {
+  #topbar {
+    pointer-events: auto; /* the strip itself must receive the swipe */
+    gap: 6px;
+    padding: 6px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  #topbar::-webkit-scrollbar { display: none; }
+  #topbar h1 { font-size: 13px; flex: 0 0 auto; }
+  #topbar .hint { display: none; } /* "click the map to add a location" — not a phone gesture */
+  #topbar button {
+    margin-left: 0; /* the desktop rule right-aligns the first button; here it would gap-jam */
+    flex: 0 0 auto;
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+  #wind-levels { flex: 0 0 auto; }
+  #wind-levels button { padding: 4px 6px; }
+}
