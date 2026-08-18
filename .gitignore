@@ -37,3 +37,4 @@ __pycache__/
 
 # Native self-check output (written beside the exe at runtime)
 aether-native-check.jsonl
+*.nc
