@@ -484,3 +484,9 @@ html, body {
   #cards { height: 282px; bottom: 30px; }
   .maplibregl-ctrl-attrib { max-width: 60vw; }
 }
+
+@media (max-width: 700px) {
+  /* The radar scrubber defaults to just above the footer — which is now INSIDE the taller
+     card rail, landing on the location names. Sit it above the rail instead. */
+  #timeline { bottom: 318px; }
+}
