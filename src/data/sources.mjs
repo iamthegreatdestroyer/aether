@@ -393,6 +393,29 @@ export const SOURCES = [
     verifiedAt: '2026-08-16',
   },
   {
+    id: 'donki',
+    name: 'NASA DONKI (CCMC)',
+    role: 'CME watch — WSA-Enlil Earth-arrival predictions for the Solar Chain',
+    baseUrl: 'https://api.nasa.gov/DONKI',
+    probeUrl:
+      'https://api.nasa.gov/DONKI/WSAEnlilSimulations?startDate=2024-05-08&endDate=2024-05-12&api_key=DEMO_KEY',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200, 429],
+    minBytes: 1000,
+    license: 'US Government work, public domain',
+    attribution: 'NASA CCMC / DONKI',
+    rateLimit: 'DEMO_KEY: measured X-Ratelimit-Limit 10/h per IP — panel-open only, 3 h cache',
+    notes:
+      'DEMO_KEY is NASA\'s PUBLISHED public demo key, not a secret — committing it is the ' +
+      'documented personal-use path; a real key is a config upgrade, not a design change. ' +
+      '429 tolerated in the probe because the quota is per-IP and CI runners share IP pools ' +
+      'with every other DEMO_KEY user. Probe window is pinned to the 2024 Gannon storm so ' +
+      'its rich response shape never goes stale. Verified 2026-08-18: CORS *, ' +
+      'estimatedShockArrivalTime + kp_18/90/135/180 present on Earth-directed runs.',
+    verifiedAt: '2026-08-18',
+  },
+  {
     id: 'sensor-community',
     name: 'Sensor.Community',
     role: 'Hyperlocal obs + PM for Smoke Story and the ledger',

@@ -676,3 +676,20 @@ RJTT/RJTI/RJTF/…). Nearest-station resolution is one haversine over the respon
   `aether-native-check.jsonl`.
 - Desktop CI proven same day: first `desktop.yml` run green on windows-latest; the P6 push's
   Pages deploy + contract probe also green. Releases are a `git tag` away.
+
+### 10.2 CME watch — SHIPPED 2026-08-18. The "key mgmt" deferral dissolved on probe.
+
+DONKI was deferred at P4 for key management. Re-probed: NASA's published DEMO_KEY is the
+documented personal-use path (not a secret), api.nasa.gov sends `Access-Control-Allow-Origin:
+*`, and the measured quota (X-Ratelimit-Limit: 10/h per IP) is fine for a panel-open-only
+fetch behind a 3 h cache. Tier A, no key management at all.
+
+- `WSAEnlilSimulations` gives STRUCTURED arrival predictions — `estimatedShockArrivalTime` +
+  `kp_18/90/135/180` clock-angle estimates — no message-text parsing needed.
+- Three honest states: incoming (countdown + Kp range + run provenance + "±7 h typical"),
+  quiet ("no Earth-directed CME in the last 7 days of Enlil runs" — a real answer), and
+  unavailable (fetch failed — a different answer, never conflated with quiet).
+- Probe pinned to the 2024 Gannon storm window so the contract check never goes stale;
+  429 tolerated in CI because DEMO_KEY quota is per-IP and runners share pools.
+- Verified live at ship time with a real event: Earth-directed CME, shock arrival
+  2026-08-20 12:00Z (~54 h out), predicted Kp 0–4, from the 2026-08-16 23:00Z Enlil run.

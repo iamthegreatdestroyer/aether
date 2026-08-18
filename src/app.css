@@ -394,3 +394,9 @@ html, body {
   }
   .card { min-width: 240px; }
 }
+
+/* CME watch (Solar Chain) */
+.cme-row { margin: 0.2rem 0 0.4rem; font-size: 0.86rem; }
+.cme-row.muted { color: var(--muted, #8a93a6); }
+.cme-incoming { color: #ffb454; }
+.cme-note { margin: -0.2rem 0 0.4rem; font-size: 0.74rem; color: var(--muted, #8a93a6); }

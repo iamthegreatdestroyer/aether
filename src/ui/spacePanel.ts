@@ -8,12 +8,14 @@
 
 import {
   auroraVerdict,
+  fetchCmeOutlook,
   fetchKpSeries,
   fetchOvation,
   fetchSolarWindNow,
   kpSeverity,
   sampleAurora,
 } from '../data/space';
+import type { CmeOutlook } from '../data/space';
 import { balloonTruth } from '../data/sondes';
 import { fetchJson } from '../data/fetcher';
 import { source } from '../data/sources.mjs';
@@ -68,11 +70,32 @@ export async function renderSpace(
       <span class="sw-meta">DSCOVR/ACE via SWPC · ${w.time.slice(11, 16)}Z</span>`;
   };
 
-  const [kpSeries, wind, ovationMeta] = await Promise.all([
+  const [kpSeries, wind, ovationMeta, cme] = await Promise.all([
     fetchKpSeries().catch(() => null),
     fetchSolarWindNow().catch(() => null),
     fetchOvation().catch(() => null),
+    fetchCmeOutlook().catch(() => 'error' as const),
   ]);
+
+  // ---- CME watch: three honest states — incoming, quiet, and unavailable
+  const cmeHtml = (() => {
+    if (cme === 'error') return `<p class="cme-row muted">CME watch unavailable (DONKI unreachable or over quota)</p>`;
+    const o = cme as CmeOutlook;
+    if (!o.arrival) {
+      return `<p class="cme-row">quiet — no Earth-directed CME in the last ${o.windowDays} days of Enlil runs</p>`;
+    }
+    const hrs = Math.round((Date.parse(o.arrival) - Date.now()) / 3_600_000);
+    const eta = hrs >= 0 ? `in ~${hrs} h` : `${-hrs} h ago — may be arriving now`;
+    const kp = o.kpRange
+      ? o.kpRange[0] === o.kpRange[1]
+        ? `Kp ~${o.kpRange[0]}`
+        : `Kp ${o.kpRange[0]}–${o.kpRange[1]}`
+      : 'Kp estimate unavailable';
+    return `<p class="cme-row cme-incoming">⚡ Earth-directed CME — est. shock arrival
+      <b>${o.arrival.slice(0, 16).replace('T', ' ')}Z</b> (${eta}) · predicted ${kp}</p>
+      <p class="cme-note">WSA-Enlil run ${o.simIssued ? o.simIssued.slice(0, 16).replace('T', ' ') + 'Z' : '—'} ·
+      arrival predictions typically carry ±7 h</p>`;
+  })();
 
   const kp = kpSeries?.readings ?? [];
   const latest = kp[kp.length - 1];
@@ -129,6 +152,9 @@ export async function renderSpace(
 
     <h3>Solar wind now ${sev ? `· <span class="${sev.cls}">Kp ${latest!.kp.toFixed(1)} — ${sev.level}</span>` : ''}</h3>
     <div id="sw-now" class="sw-row">${wind ? windHtml(wind) : 'solar wind unavailable'}</div>
+
+    <h3>CME watch <span class="kp-note">NASA CCMC / DONKI</span></h3>
+    ${cmeHtml}
 
     <h3>Kp — last 3 days <span class="kp-note">${kpSeries?.sourceLabel ?? ''}${kpSeries?.official ? ' ✓' : ''}</span></h3>
     <div class="kp-strip">${kpBars}</div>

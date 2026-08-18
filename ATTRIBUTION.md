@@ -7,7 +7,7 @@ Every string below must be displayed in the app on the **Data Sources** screen.
 These obligations are **not** waived by the personal-use scope — CC BY attaches to display
 of the data itself, regardless of whether the software is ever distributed.
 
-11 sources require attribution; 14 do not.
+12 sources require attribution; 14 do not.
 
 ## Required
 
@@ -21,6 +21,7 @@ of the data itself, regardless of whether the software is ever distributed.
 | NASA GIBS WMTS | **NASA GIBS/Worldview** | Free and open, NASA attribution |
 | GFZ Potsdam Kp (OFFICIAL) | **GFZ German Research Centre for Geosciences** | CC BY 4.0 (returned live in meta.license) |
 | SondeHub v2 | **SondeHub (CC BY-SA 2.0)** | CC BY-SA 2.0 |
+| NASA DONKI (CCMC) | **NASA CCMC / DONKI** | US Government work, public domain |
 | Sensor.Community | **Sensor.Community** | Database Contents License, attribution |
 | OpenFreeMap | **© OpenStreetMap contributors** | ODbL (OpenStreetMap data) |
 | ECMWF Open Data (IFS + AIFS) | **This service is based on data and products of ECMWF** | CC BY 4.0 since 2025-10-01 |

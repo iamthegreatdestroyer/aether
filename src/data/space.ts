@@ -13,6 +13,7 @@
  * required by the contract note to label it as an estimate, and does.
  */
 
+import { STORE_LATEST, dbGet, dbPut } from './db';
 import { fetchJson, hasNativeTransport } from './fetcher';
 import { source } from './sources.mjs';
 
@@ -101,6 +102,90 @@ export async function fetchSolarWindNow(): Promise<SolarWindNow> {
   const m = mag[0];
   if (!w || !m) throw new Error('SWPC summaries returned empty arrays');
   return { speedKms: w.proton_speed, bt: m.bt, bz: m.bz_gsm, time: w.time_tag };
+}
+
+// ------------------------------------------------------------ CME watch (DONKI)
+
+export interface CmeOutlook {
+  /** estimatedShockArrivalTime of the freshest Earth-directed Enlil run; null = quiet. */
+  arrival: string | null;
+  /** min–max across the run's kp_18/90/135/180 clock-angle estimates. */
+  kpRange: [number, number] | null;
+  /** modelCompletionTime of the run the prediction came from — provenance for the panel. */
+  simIssued: string | null;
+  /** How many Earth-directed runs the window held (context for "quiet"). */
+  earthDirected: number;
+  windowDays: number;
+}
+
+interface EnlilSim {
+  modelCompletionTime: string | null;
+  isEarthGB: boolean;
+  estimatedShockArrivalTime: string | null;
+  kp_18: number | null;
+  kp_90: number | null;
+  kp_135: number | null;
+  kp_180: number | null;
+}
+
+interface CmeCache {
+  fetchedAt: number;
+  outlook: CmeOutlook;
+}
+
+const CME_TTL_MS = 3 * 60 * 60 * 1000; // DEMO_KEY is 10 req/h per IP — cache hard
+const CME_WINDOW_DAYS = 7;
+
+/**
+ * CME watch — WSA-Enlil simulations from NASA DONKI, panel-open only, 3 h cache. The
+ * DEMO_KEY quota (measured: 10/h per IP) makes the cache a requirement, not an optimisation.
+ * "Quiet" (no Earth-directed run in the window) is a real answer and renders as one;
+ * a thrown fetch error is a different answer and renders as "unavailable".
+ */
+export async function fetchCmeOutlook(): Promise<CmeOutlook> {
+  const cached = await dbGet<CmeCache>(STORE_LATEST, 'cme1');
+  if (cached && Date.now() - cached.fetchedAt < CME_TTL_MS) return cached.outlook;
+
+  const s = source('donki');
+  const end = new Date();
+  const start = new Date(end.getTime() - CME_WINDOW_DAYS * 24 * 3600 * 1000);
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const sims = await fetchJson<EnlilSim[]>(
+    'donki',
+    `${s.baseUrl}/WSAEnlilSimulations?startDate=${day(start)}&endDate=${day(end)}&api_key=DEMO_KEY`,
+  );
+
+  const earthDirected = sims.filter((x) => x.isEarthGB && x.estimatedShockArrivalTime);
+  // Freshest run whose predicted arrival is still ahead (or within the last 12 h — "may be
+  // arriving now" is worth showing; a week-old passed arrival is not).
+  const live = earthDirected
+    .filter((x) => Date.parse(x.estimatedShockArrivalTime!) > Date.now() - 12 * 3600 * 1000)
+    .sort((a, b) => (a.modelCompletionTime ?? '').localeCompare(b.modelCompletionTime ?? ''))
+    .pop();
+
+  let outlook: CmeOutlook;
+  if (live) {
+    const kps = [live.kp_18, live.kp_90, live.kp_135, live.kp_180]
+      .map(Number)
+      .filter(Number.isFinite);
+    outlook = {
+      arrival: live.estimatedShockArrivalTime,
+      kpRange: kps.length > 0 ? [Math.min(...kps), Math.max(...kps)] : null,
+      simIssued: live.modelCompletionTime,
+      earthDirected: earthDirected.length,
+      windowDays: CME_WINDOW_DAYS,
+    };
+  } else {
+    outlook = {
+      arrival: null,
+      kpRange: null,
+      simIssued: null,
+      earthDirected: earthDirected.length,
+      windowDays: CME_WINDOW_DAYS,
+    };
+  }
+  await dbPut(STORE_LATEST, { fetchedAt: Date.now(), outlook } satisfies CmeCache, 'cme1');
+  return outlook;
 }
 
 interface OvationCache {
