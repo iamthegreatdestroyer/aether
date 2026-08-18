@@ -59,12 +59,15 @@ const MIN_ACCEPTABLE_FPS = 40;
  * labels — vanishes underneath. Windy solves this by drawing sparse streaks over a coloured
  * raster; we have no raster, so the field itself must thin out as the view widens. Buckets,
  * not a per-frame ramp: changing particleCount reallocates GPU textures.
- *   bucket 0: z < 3   world / continental — a hint of flow over a readable map
+ *   bucket 0: z < 3   world / continental — visible flow over a readable map. Retuned
+ *                     UP once the basemap legibility pass landed: the first pass was
+ *                     calibrated against the near-black vendor style and, with the map
+ *                     brightened, left the wind almost invisible (owner screenshot #2).
  *   bucket 1: z 3–5   regional
  *   bucket 2: z >= 5  local — unchanged from the tuning the spike measured
  */
-const DENSITY_BY_ZOOM = [0.1, 0.4, 1] as const;
-const TRAIL_BY_ZOOM = [0.82, 0.91, 0.96] as const;
+const DENSITY_BY_ZOOM = [0.17, 0.5, 1] as const;
+const TRAIL_BY_ZOOM = [0.85, 0.92, 0.96] as const;
 
 export class WindLayer {
   private engine: WindEngine | null = null;
@@ -126,7 +129,7 @@ export class WindLayer {
   private applyStyle(force = false): void {
     const z = this.map.getZoom();
     // Canvas alpha ramps continuously: it is pure CSS, so it costs nothing per frame.
-    this.canvas.style.opacity = String(Math.min(1, 0.4 + Math.max(0, z - 2) * 0.2));
+    this.canvas.style.opacity = String(Math.min(1, 0.52 + Math.max(0, z - 2) * 0.16));
     const bucket = z < 3 ? 0 : z < 5 ? 1 : 2;
     if (!force && bucket === this.zoomBucket) return;
     this.zoomBucket = bucket;

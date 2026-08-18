@@ -909,3 +909,18 @@ overshot into a black canvas.
   continuous canvas-alpha ramp from 0.4.
 - Measured with `windStep`'s pixel coverage at world zoom: **47.5% → 28.9%** lit fraction
   after tuning (and the pre-fix build was effectively saturated).
+
+### 11.5 Retune: the legibility pass over-corrected the wind (owner screenshot #2)
+
+With the basemap brightened (§11.4), the particle suppression tuned against the OLD
+near-black style left the wind almost invisible at world zoom — the app's signature layer,
+gone. Retuned UP now that the map can carry more ink: density 17%/50%/100%, trails
+0.85/0.92/0.96, canvas alpha from 0.52. Measured effective ink at world zoom (lit fraction ×
+canvas alpha): **~95% pre-fix (unusable) → 11.6% (over-corrected) → 25.6% (visible flow over
+a readable map)**.
+
+Method note: the first retune measurement read the OLD constants back. The dev server had
+died and the service worker — network-first, cache-fallback — served the previous modules,
+so the page ran stale code while reporting confidently. Third time SW staleness has produced
+a false measurement in this project (P4, P6, here). **When a measurement disagrees with an
+edit you just made, verify the server is alive before believing either.**
