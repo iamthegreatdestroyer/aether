@@ -730,3 +730,21 @@ PM2.5 with EPA-band colouring; 🔥 map layer (dots sized by detections, coloure
 behind the registry door as source `firms`. Verified live: NYC 2 clusters/none toward;
 London 11 (August grass fires)/none toward, PM2.5 2 µg/m³ across 11 sensors agreeing;
 Tokyo 6/none toward. Clean error log through panel + layer cycle.
+
+### 10.5 GLM lightning — EVALUATED 2026-08-18: the blocker moved, a design decision remains.
+
+Probed live (GOES-19, `noaa-goes19` S3): GLM-L2-LCFA granules every 20 s, ~280 KB each,
+and — the surprise — the bucket sends `Access-Control-Allow-Origin: *`. The assumed Tier B
+NetCDF lane was the WRONG frame entirely:
+
+- **Tier B (cron density grid) is dishonest here and stays rejected**: lightning is a
+  nowcast; a 6-hour-stale flash map is theater. This deferral was correct and is now
+  permanent, with numbers.
+- **Tier A live is real**: list the current hour's prefix, fetch the LATEST granule, parse,
+  plot — genuinely live lightning, honestly labelled "flashes in the last 20 s". The one
+  cost: GLM L2 is netCDF4/HDF5, so the browser needs an HDF5 reader (h5wasm, ~1 MB wasm) —
+  the app's first binary-parsing dependency. That is a design decision (dependency weight vs
+  a live-lightning wow), not an engineering blocker, and it is parked HERE until decided.
+
+Everything else on the deferred backlog is shipped: METAR truth (10.1), CME watch (10.2),
+altitude winds (10.3), Smoke Story (10.4).
