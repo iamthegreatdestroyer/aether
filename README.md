@@ -4,26 +4,29 @@ A free, personal-use weather app: Windy-class visualization, a forecast-verifica
 that compounds with use, and the atmosphere-to-space chain nobody fuses. **$0/month, no
 backend, no accounts, no ads.**
 
-> **Status: v0.2.0 — the full roadmap (P0–P6), all four Windy-tour features, and the entire
-> deferred backlog are shipped.** Live at
-> [iamthegreatdestroyer.github.io/aether](https://iamthegreatdestroyer.github.io/aether/);
-> also an installable PWA (60 fps at 1M particles on a Galaxy S25+) and a Tauri Windows
-> desktop app whose Rust-side transport unlocks the CORS-closed sources (official GFZ Kp,
-> aviation METAR truth for the ledger).
+> **Status: v0.3.0 — one app, four subscriptions replaced.** Live at
+> [iamthegreatdestroyer.github.io/aether](https://iamthegreatdestroyer.github.io/aether/); also
+> an installable PWA and a Tauri Windows desktop app whose Rust-side transport reaches the
+> sources browsers are refused.
 >
-> Forecast cards with offline-first boot · million-particle wind at four altitudes
-> (Sfc/850/500/250 hPa) · radar with a recovering failover chain · VIIRS satellite ·
-> ⚡ **live lightning** (GLM granules parsed in-browser, ~20 s cadence) · 🔥 **Smoke Story**
-> (FIRMS fires — live to ~20 min with a free MAP_KEY — ray-tested against surface wind, with
-> PM2.5 ground truth and per-dot receipts) · **"Is this weird?"** (73-year ERA5 percentile
-> context) · **"Who Was Right?"** four-model receipts scored against real observations ·
-> storm ledger (live NHC verification vs official + model aids) · route trajectory sampling ·
-> honesty labels + ensemble confidence cones · IFS-vs-AIFS divergence layer · CME watch with
-> Enlil arrival countdowns · aurora × cloud · **ISS/Tiangong visible passes × cloud**
-> (SGP4 cross-checked against Skyfield) · live radiosondes (*Balloon Truth*).
+> **Weather**: million-particle wind at four altitudes · radar with a recovering failover
+> chain · VIIRS satellite · ⚡ live lightning (GLM parsed in-browser, ~20 s from the sky) ·
+> 🔥 Smoke Story (FIRMS fires ray-tested against surface wind, PM2.5 truth) · ⚠ **NWS warning
+> polygons, with the alert banner sitting above the temperature on the card** ·
+> "Is this weird?" (73-year ERA5 percentiles) · **"Who Was Right?" four-model receipts scored
+> against real observations** · storm ledger · ensemble cones + honesty labels · IFS-vs-AIFS
+> divergence.
 >
-> Tier B runs on GitHub Actions: wind textures, storm ledger, fire clusters and divergence
-> refresh 6-hourly; the endpoint contract (31 sources) is probed daily.
+> **And the things other apps charge for**: 🌊 **Marine** — NOAA tide curves with the measured
+> gauge printed beside the prediction, nearest-buoy sea state, wave model, moon
+> *(vs Navionics, $50/yr)* · ✈ **Air** — live ADS-B aircraft with route lookup, desktop only
+> because every open feed refuses browsers *(vs Flightradar24)* · 🥾 **Trails** — OSM trails
+> with the weather sampled at each trail *(vs AllTrails+ $36/yr, Gaia $40/yr)* ·
+> ☀ Space — CME arrival countdowns, aurora × cloud, ISS/Tiangong visible passes
+> (SGP4 cross-checked against Skyfield), live radiosondes.
+>
+> Tier B runs on GitHub Actions: wind textures, storm ledger, fire clusters, divergence and
+> marine stations refresh 6-hourly; the **36-source endpoint contract** is probed daily.
 >
 > ```bash
 > volta run --node 20.20.1 -- pnpm -C aether dev   # http://localhost:5175
@@ -51,7 +54,7 @@ Source research: `../Kimi_Agent_Free Weather App Proposals/`.
 node scripts/probe-sources.mjs
 ```
 
-Last full run: **31/31 sources matched**, 2026-08-18.
+Last full run: **36/36 sources matched**, 2026-08-18.
 
 ## Why the probe exists
 
