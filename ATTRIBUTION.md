@@ -7,7 +7,7 @@ Every string below must be displayed in the app on the **Data Sources** screen.
 These obligations are **not** waived by the personal-use scope — CC BY attaches to display
 of the data itself, regardless of whether the software is ever distributed.
 
-13 sources require attribution; 14 do not.
+14 sources require attribution; 14 do not.
 
 ## Required
 
@@ -23,6 +23,7 @@ of the data itself, regardless of whether the software is ever distributed.
 | SondeHub v2 | **SondeHub (CC BY-SA 2.0)** | CC BY-SA 2.0 |
 | NASA DONKI (CCMC) | **NASA CCMC / DONKI** | US Government work, public domain |
 | NASA FIRMS active fires (VIIRS) | **NASA FIRMS** | NASA data — free, attribution requested |
+| GOES GLM lightning (AWS open data) | **NOAA GOES-R GLM** | US Government work, public domain (NOAA on AWS Open Data) |
 | Sensor.Community | **Sensor.Community** | Database Contents License, attribution |
 | OpenFreeMap | **© OpenStreetMap contributors** | ODbL (OpenStreetMap data) |
 | ECMWF Open Data (IFS + AIFS) | **This service is based on data and products of ECMWF** | CC BY 4.0 since 2025-10-01 |

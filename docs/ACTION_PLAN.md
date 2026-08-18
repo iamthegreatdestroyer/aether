@@ -748,3 +748,23 @@ NetCDF lane was the WRONG frame entirely:
 
 Everything else on the deferred backlog is shipped: METAR truth (10.1), CME watch (10.2),
 altitude winds (10.3), Smoke Story (10.4).
+
+### 10.6 Live lightning — SHIPPED 2026-08-18. The only honestly-live layer in the app.
+
+§10.5's design decision was taken: the wow won. GLM flashes from GOES-East + GOES-West,
+20-second granules fetched straight from the CORS-open S3 buckets and parsed IN THE BROWSER
+with h5wasm — verified against a live granule in spike/glm_h5_test.mjs before the layer was
+written (flash_lat/lon plain float32; flash_energy int16 with ARRAY-WRAPPED scale/offset
+attrs; flash_quality_flag != 0 dropped).
+
+- Rolling 5-minute window; dots sized by log10(flash energy), fading white→ember with age;
+  poll every 20 s per satellite with granule-key dedupe; missed granules self-heal.
+- Button title is the live status line: flash count + newest-granule age + the coverage
+  honesty ("Americas field of view" — Europe/Asia have no open GLM equivalent).
+- Dependency cost, measured not estimated: a SEPARATE lazy 4.8 MB chunk (bundler inlined
+  the wasm; ~1.0 MB gzipped), fetched on first toggle only, then service-worker cached.
+  Main bundle unchanged at 1.17 MB.
+- First live toggle: 246 flashes / newest granule 48 s old; 65 s later: 1006 flashes /
+  29 s old, zero console warnings — both satellites parsing, window filling as designed.
+
+THE ENTIRE DEFERRED BACKLOG IS NOW CLOSED: 10.1–10.6, all probe-first, all verified live.

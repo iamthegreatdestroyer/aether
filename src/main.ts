@@ -28,6 +28,7 @@ import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
 import { buildSmokeDialog, renderSmoke } from './ui/smokePanel';
 import { FiresLayer } from './layers/fires';
+import { LightningLayer } from './layers/lightning';
 import { isThisWeird } from './data/climatology';
 import { fetchHonesty } from './data/ensemble';
 import { buildConeDialog, renderCone } from './ui/coneDialog';
@@ -536,6 +537,26 @@ document.getElementById('storms-toggle')!.addEventListener('click', () => {
       if (stormLedger) showStormOnMap(map, stormLedger, i);
     });
   });
+});
+
+const lightningLayer = new LightningLayer(map);
+const ltngToggle = document.getElementById('ltng-toggle') as HTMLButtonElement;
+lightningLayer.onChange = () => {
+  const st = lightningLayer.state;
+  ltngToggle.classList.toggle('is-on', st.enabled);
+  ltngToggle.title = st.enabled
+    ? `Live lightning — ${st.flashesInWindow} flashes in the last 5 min · newest granule ${st.latestGranuleAgeS ?? '—'} s old · GOES-East+West (Americas)`
+    : 'Live lightning — GLM flashes from GOES-East/West, last 5 min (Americas field of view)';
+};
+ltngToggle.addEventListener('click', () => {
+  if (lightningLayer.state.enabled) lightningLayer.disable();
+  else {
+    ltngToggle.disabled = true;
+    void lightningLayer
+      .enable()
+      .catch((err) => console.warn('[lightning]', err))
+      .finally(() => (ltngToggle.disabled = false));
+  }
 });
 
 const firesLayer = new FiresLayer(map);

@@ -14,6 +14,9 @@ importers:
       '@tauri-apps/plugin-http':
         specifier: ^2.5.9
         version: 2.5.9
+      h5wasm:
+        specifier: ^0.10.3
+        version: 0.10.3
       maplibre-gl:
         specifier: 5.24.0
         version: 5.24.0
@@ -21,6 +24,9 @@ importers:
       '@tauri-apps/cli':
         specifier: ^2.11.4
         version: 2.11.4
+      '@types/geojson':
+        specifier: ^7946.0.16
+        version: 7946.0.16
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
@@ -463,6 +469,9 @@ packages:
   gl-matrix@3.4.4:
     resolution: {integrity: sha512-latSnyDNt/8zYUB6VIJ6PCh2jBjJX6gnDsoCZ7LyW7GkqrD51EWwa9qCoGixj8YqBtETQK/xY7OmpTF8xz1DdQ==}
 
+  h5wasm@0.10.3:
+    resolution: {integrity: sha512-W4Jy5ExtX/VNbyD8GdOBckDuj6AL16TemppVNxZsV3rJZEWCv2sxlCzOttZLer3zkMttbDYsWHl0qt1z3Bln+Q==}
+
   json-stringify-pretty-compact@4.0.0:
     resolution: {integrity: sha512-3CNZ2DnrpByG9Nqj6Xo8vqbjT4F6N+tb4Gb28ESAZjYZ5yqvmc56J+/kuIwkaAMOyblTQhUW7PxMkUb8Q36N3Q==}
 
@@ -871,6 +880,8 @@ snapshots:
     optional: true
 
   gl-matrix@3.4.4: {}
+
+  h5wasm@0.10.3: {}
 
   json-stringify-pretty-compact@4.0.0: {}
 

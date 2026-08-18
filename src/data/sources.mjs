@@ -437,6 +437,30 @@ export const SOURCES = [
     verifiedAt: '2026-08-18',
   },
   {
+    id: 'goes-glm',
+    name: 'GOES GLM lightning (AWS open data)',
+    role: 'LIVE lightning — 20 s flash granules, parsed in-browser with h5wasm',
+    baseUrl: 'https://noaa-goes19.s3.amazonaws.com',
+    probeUrl:
+      'https://noaa-goes19.s3.amazonaws.com/?list-type=2&prefix=GLM-L2-LCFA/&max-keys=1',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 200,
+    mustNotContain: '<Error>',
+    license: 'US Government work, public domain (NOAA on AWS Open Data)',
+    attribution: 'NOAA GOES-R GLM',
+    rateLimit: 'none stated; 2 sats x (1 list + 1 granule) per 20 s while the layer is on',
+    notes:
+      'MEASURED 2026-08-18: bucket sends Access-Control-Allow-Origin * — the assumed ' +
+      'Tier-B-NetCDF framing was wrong, browser-direct works. GOES-West is the same lane ' +
+      'at noaa-goes18 (verified identical CORS). Granules are netCDF4/HDF5 → h5wasm ' +
+      '(measured: 4.8 MB lazy chunk with wasm inlined, ~1.0 MB gzipped, first toggle only) — the app\'s first binary-parsing ' +
+      'dependency, accepted for the only honestly-live layer in the app. flash_quality_flag ' +
+      '!= 0 dropped. A 6-hourly cron for lightning was REJECTED: stale lightning is theater.',
+    verifiedAt: '2026-08-18',
+  },
+  {
     id: 'sensor-community',
     name: 'Sensor.Community',
     role: 'Hyperlocal obs + PM for Smoke Story and the ledger',
