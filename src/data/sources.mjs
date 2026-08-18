@@ -656,17 +656,22 @@ export const SOURCES = [
       'https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%3Bway%5B%22highway%22%3D%22path%22%5D(27.35%2C-82.5%2C27.45%2C-82.4)%3Bout%20count%3B',
     tier: 'A',
     cors: 'open',
-    expectStatus: [200],
+    // 429 and 504 are not failures here, they are what a loaded shared instance SAYS. The
+    // contract's job is to describe reality, and Overpass's reality includes "busy right
+    // now" (a 504 broke a deploy on 2026-08-18). Body guards only apply to 2xx, so a busy
+    // answer is tolerated without weakening the check on a real one.
+    expectStatus: [200, 429, 504],
     minBytes: 60,
     mustNotContain: '<html',
+    probePolitely: true,
     license: 'ODbL 1.0 — attribution AND licence notice required',
     attribution: 'Trail data © OpenStreetMap contributors, ODbL 1.0',
-    rateLimit: 'shared public instance — query on panel open only, never polled',
+    rateLimit: 'shared public instance — query on panel open only, never polled, probed daily',
     notes:
       'MEASURED 2026-08-18: CORS *, keyless, 134 trail ways in one small Sarasota box. This ' +
       'whole lane works in the BROWSER, unlike flight — trails run on the phone too. Overpass ' +
       'is a shared volunteer instance: one bounded query per panel open, a 25 s server-side ' +
-      'timeout in the query itself, and no polling. Unnamed ways are excluded client-side.',
+      'timeout in the query itself, and no polling. Unnamed ways are excluded client-side. probePolitely added 2026-08-18 for the same reason as CelesTrak: probing a shared volunteer instance on every push is the compliance machinery misbehaving.',
     verifiedAt: '2026-08-18',
   },
 
