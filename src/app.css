@@ -425,3 +425,12 @@ html, body {
 .smoke-live { color: #4ade80; }
 .smoke-key { font-size: 0.76rem; color: var(--muted, #8a93a6); margin: 0.2rem 0 0.5rem; }
 .smoke-key input { font-size: 0.76rem; }
+
+/* Fire dot popup (dark-themed maplibre popup) */
+.fire-popup .maplibregl-popup-content {
+  background: #1a2030; color: #dbe2f0; font-size: 12px; line-height: 1.5;
+  border-radius: 6px; padding: 8px 22px 8px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.fire-popup .maplibregl-popup-tip { border-top-color: #1a2030; border-bottom-color: #1a2030; }
+.fire-popup .maplibregl-popup-close-button { color: #8a93a6; font-size: 14px; }
+.fire-popup-ray { color: var(--muted, #8a93a6); }

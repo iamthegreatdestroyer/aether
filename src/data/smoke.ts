@@ -273,6 +273,39 @@ export interface SmokeAssessment {
 
 const RADIUS_KM = 400;
 
+/** The ray test for one fire vs one location — the panel and the map popup MUST agree,
+ *  so this is the single implementation both call. */
+function threatFor(
+  c: { lat: number; lon: number; frp: number; n: number; acqMs?: number },
+  loc: { lat: number; lon: number },
+  grid: WindGrid,
+): FireThreat {
+  const { u, v } = sampleUv(grid, c.lat, c.lon);
+  const windTowardDeg = ((Math.atan2(u, v) * 180) / Math.PI + 360) % 360;
+  const fireToYou = bearingDeg(c.lat, c.lon, loc.lat, loc.lon);
+  let off = Math.abs(windTowardDeg - fireToYou);
+  if (off > 180) off = 360 - off;
+  const verdict: FireThreat['verdict'] = off <= 35 ? 'toward' : off <= 70 ? 'glancing' : 'away';
+  return {
+    distanceKm: Math.round(haversineKm(loc.lat, loc.lon, c.lat, c.lon)),
+    bearingFromYou: bearingDeg(loc.lat, loc.lon, c.lat, c.lon),
+    frp: c.frp,
+    n: c.n,
+    offAxisDeg: Math.round(off),
+    windAtFireMs: Math.round(Math.hypot(u, v) * 10) / 10,
+    verdict,
+    acqMs: c.acqMs ?? null,
+  };
+}
+
+/** Popup-facing wrapper: loads the wind grid on demand, then runs the shared ray test. */
+export async function fireRayTest(
+  c: { lat: number; lon: number; frp: number; n: number; acqMs?: number },
+  loc: { lat: number; lon: number },
+): Promise<FireThreat> {
+  return threatFor(c, loc, await loadWindGrid());
+}
+
 export async function assessSmoke(loc: SavedLocation): Promise<SmokeAssessment> {
   // Live first when a key exists; any live failure falls back to the cron snapshot,
   // labelled as such — the mode is part of the answer, never silent.
@@ -295,24 +328,7 @@ export async function assessSmoke(loc: SavedLocation): Promise<SmokeAssessment> 
     .filter((x) => x.distanceKm <= RADIUS_KM)
     .sort((a, b) => b.c.frp - a.c.frp);
 
-  const top: FireThreat[] = near.slice(0, 10).map(({ c, distanceKm }) => {
-    const { u, v } = sampleUv(grid, c.lat, c.lon);
-    const windTowardDeg = ((Math.atan2(u, v) * 180) / Math.PI + 360) % 360;
-    const fireToYou = bearingDeg(c.lat, c.lon, loc.lat, loc.lon);
-    let off = Math.abs(windTowardDeg - fireToYou);
-    if (off > 180) off = 360 - off;
-    const verdict: FireThreat['verdict'] = off <= 35 ? 'toward' : off <= 70 ? 'glancing' : 'away';
-    return {
-      distanceKm: Math.round(distanceKm),
-      bearingFromYou: bearingDeg(loc.lat, loc.lon, c.lat, c.lon),
-      frp: c.frp,
-      n: c.n,
-      offAxisDeg: Math.round(off),
-      windAtFireMs: Math.round(Math.hypot(u, v) * 10) / 10,
-      verdict,
-      acqMs: c.acqMs ?? null,
-    };
-  });
+  const top: FireThreat[] = near.slice(0, 10).map(({ c }) => threatFor(c, loc, grid));
 
   return {
     locationKey: locationKey(loc),

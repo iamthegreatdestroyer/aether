@@ -560,6 +560,7 @@ ltngToggle.addEventListener('click', () => {
 });
 
 const firesLayer = new FiresLayer(map);
+firesLayer.locationsProvider = () => locations.map((l) => ({ name: l.name, lat: l.lat, lon: l.lon }));
 const smokeDialog = buildSmokeDialog();
 const smokeToggle = document.getElementById('smoke-toggle') as HTMLButtonElement;
 smokeToggle.addEventListener('click', () => {
@@ -625,7 +626,13 @@ if ('serviceWorker' in navigator) {
   /** P1 exit check: picker vs Open-Meteo GFS at the texture's valid time. */
   sampleWind: (lng: number, lat: number) => windLayer.sampleWind(lng, lat),
   fires: () => firesLayer.state,
+  map, // headless verification needs queryRenderedFeatures + camera state
   flyTo: (lng: number, lat: number, zoom: number) => map.jumpTo({ center: [lng, lat], zoom }),
+  fireDot: (lng: number, lat: number) => firesLayer.openDotAt(lng, lat),
+  clickAt: (lng: number, lat: number) => {
+    const point = map.project([lng, lat]);
+    map.fire('click', { lngLat: { lng, lat }, point, originalEvent: new MouseEvent('click') });
+  },
   weird: (i = 0) => {
     const loc = locations[i];
     const c = loc && cardStates.get(loc.id);

@@ -805,3 +805,20 @@ bonfire — the span threshold IS the honesty rule.
 Verified live: world → cron; central US z5 → live, 132 clusters, newest 08:10Z (~25 min);
 zoom-out → cron again; Congo Basin z5 → live, 47 clusters, newest 01:15Z (night passes);
 zero HTTP errors across the tour. `__aether.fires()` + `flyTo()` joined the debug hook.
+
+### 10.9 Fire dot receipts — SHIPPED 2026-08-18. Click a fire, get its story.
+
+Every 🔥 dot is now clickable: intensity (decimal below 10 MW), detection provenance (live
+dots carry their seen-stamp + age; snapshot dots say "cron snapshot" instead of pretending),
+distance/bearing to the nearest saved location, and the ray test — extracted into a single
+shared threatFor() so the popup and the Smoke panel CANNOT disagree.
+
+Engineering shape: the click handler and a public openDotAt(lng, lat) drive the same path,
+so the receipt is reachable both by mouse and by callers that know coordinates (debug hook
+today; panel-row → map jump is a natural follow-on). The dark-themed popup guards against
+superseded clicks by identity check. Debug hook grew map/clickAt/fireDot — the pane-hidden
+lesson: queryRenderedFeatures needs compositing, so headless verification must drive
+source-side paths, not rendered-pixel paths.
+
+Verified live: nearest dot to (-100, 40) → "0.4 MW · 1 detection · seen 08:07Z (92 min ago)
+· 2143 km W of New York · ↛ away from New York — wind at fire 5.9 m/s, 76° off-axis".
