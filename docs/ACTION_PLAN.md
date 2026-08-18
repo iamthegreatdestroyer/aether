@@ -987,3 +987,26 @@ Verified live in both directions: card 78 °F ⇄ 26 °C; cone axis 15/20/25/30 
 59/68/77/86 °F (exact); receipts MAE 0.96 °C ⇄ 1.73 °F (×1.8, no offset — the delta rule
 holding where it matters most); tooltip σ 1.5 °F ⇄ 0.9 °C while its 74% predictability and
 the member counts stay put.
+
+### 11.9 The phone pass — measured, not eyeballed (2026-08-18)
+
+Updating the owner's S25+ found the app rendering as if the phone were a tablet. The cause
+was measurable over the adb DevTools bridge: the header's 14 buttons in one non-wrapping row
+were **1186 px on a 411 px screen**, and that overflow dragged `documentElement.scrollWidth`
+— and with it the layout viewport — out to 1186. Every other measurement followed from that
+one number, which is why guessing would have failed.
+
+- Toolbar: contained horizontal scroll strip below 700 px; desktop's `margin-left:auto`
+  cancelled; the "click the map" hint (not a phone gesture) hidden. Layout viewport 1186 → 411.
+- Cards were clipped (274 px of content in a 215 px rail) and MapLibre's expanded
+  attribution was a 44 px **white** band across them. Attribution keeps its contractual
+  visibility in the app's colours; the rail now sizes to content.
+- **Collapsible cards** (owner's call, and the right one): a card collapses to its header —
+  name, temperature, glyph — so three of them no longer eat half the screen. Phones default
+  collapsed, desktop expanded, choice remembered per location. The rail publishes its height
+  as `--rail-h` so the radar scrubber rides above whatever the current state is.
+- Verified on-device: 60 fps at 250k particles on today's 12Z cycle, °F from locale, the
+  FIRMS key installed so live fires work on the phone too.
+
+Method note: `syncRailHeight` sets the property synchronously and again on rAF, because rAF
+never fires while a page is not compositing — the same trap as `map.on('load')` in P2.

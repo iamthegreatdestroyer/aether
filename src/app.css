@@ -490,3 +490,37 @@ html, body {
      card rail, landing on the location names. Sit it above the rail instead. */
   #timeline { bottom: 318px; }
 }
+
+/* ---- collapsible cards ----
+   The full card is ~280px tall; three of them filled half a phone screen. Collapsed, a card
+   is just its header — name, temperature, glyph — and the map gets the room back. */
+.card-caret {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 6px 0 0;
+  cursor: pointer;
+}
+.card-caret:hover { color: var(--accent); }
+.card-peek {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.card.is-collapsed { padding: 8px 12px; }
+/* Everything after the header is detail. One rule, so a future section can never forget
+   to hide itself. */
+.card.is-collapsed > *:not(header) { display: none; }
+
+@media (max-width: 700px) {
+  /* Height follows content now that cards collapse; the rail no longer needs a fixed
+     280px that assumed everything was open. */
+  #cards { height: auto; max-height: 62vh; bottom: 30px; }
+  .card.is-collapsed { min-width: 0; }
+  /* The scrubber rides above whatever height the rail currently has (set by main.ts). */
+  #timeline { bottom: calc(var(--rail-h, 120px) + 40px); }
+}

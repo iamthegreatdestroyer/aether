@@ -269,16 +269,36 @@ function openCone(loc: SavedLocation): void {
 }
 
 function renderCards(): void {
+  const ids = locations.map((l) => l.id);
   rail.replaceChildren(
     ...locations.map((loc) =>
       renderCard(
         cardStates.get(loc.id) ?? { loc, data: null, fetchedAt: null, stale: false, error: null, weirdness: null, honesty: null },
         handleRemove,
         openCone,
+        ids,
+        renderCards,
       ),
     ),
   );
+  syncRailHeight();
 }
+
+/**
+ * The phone lays the rail out horizontally along the bottom, and the radar scrubber has to
+ * sit ABOVE it — but the rail's height now depends on how many cards are expanded. Publish
+ * it as a custom property and let CSS place the scrubber.
+ */
+function syncRailHeight(): void {
+  // Set it SYNCHRONOUSLY first: offsetHeight forces layout, so the value is already correct,
+  // and rAF does not fire at all while the page is not compositing (the same trap that made
+  // map.on('load') hang the headless checks in P2). The rAF pass then catches any late
+  // reflow — fonts, wrapping — on a page that IS drawing.
+  const set = () => document.documentElement.style.setProperty('--rail-h', `${rail.offsetHeight}px`);
+  set();
+  requestAnimationFrame(set);
+}
+window.addEventListener('resize', syncRailHeight);
 
 /**
  * Boot trace: every card-state transition, timestamped from page start. Exists because the

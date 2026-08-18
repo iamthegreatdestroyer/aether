@@ -39,16 +39,68 @@ function dayName(iso: string): string {
   return new Date(`${iso}T12:00`).toLocaleDateString(undefined, { weekday: 'short' });
 }
 
+/**
+ * Which cards are expanded. Phones start every card COLLAPSED — the full card is 280 px
+ * tall and three of them ate half a Galaxy S25+ screen (owner, 2026-08-18) — while desktop,
+ * where the rail is a vertical column with room to spare, starts expanded. The choice is
+ * remembered per location, so a card you care about stays open.
+ */
+const EXPANDED_KEY = 'aether.expandedCards';
+
+function expandedSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(EXPANDED_KEY);
+    if (raw === null) {
+      // No stored preference yet: collapsed on phones, open on desktop.
+      return window.matchMedia('(max-width: 700px)').matches ? new Set() : new Set(['*']);
+    }
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set(['*']);
+  }
+}
+
+export function isCardExpanded(id: string): boolean {
+  const set = expandedSet();
+  return set.has('*') || set.has(id);
+}
+
+function setCardExpanded(id: string, open: boolean, allIds: string[]): void {
+  const set = expandedSet();
+  // '*' is the "everything open" default; materialise it before removing one.
+  if (set.has('*')) {
+    set.delete('*');
+    for (const i of allIds) set.add(i);
+  }
+  if (open) set.add(id);
+  else set.delete(id);
+  localStorage.setItem(EXPANDED_KEY, JSON.stringify([...set]));
+}
+
 export function renderCard(
   state: CardState,
   onRemove: (id: string) => void,
   onCone?: (loc: SavedLocation) => void,
+  allIds: string[] = [],
+  onToggle?: () => void,
 ): HTMLElement {
   const el = document.createElement('article');
   el.className = 'card';
   el.dataset['locId'] = state.loc.id;
 
+  const expanded = isCardExpanded(state.loc.id);
+  el.classList.toggle('is-collapsed', !expanded);
+
   const head = document.createElement('header');
+  const caret = document.createElement('button');
+  caret.className = 'card-caret';
+  caret.setAttribute('aria-expanded', String(expanded));
+  caret.setAttribute('aria-label', `${expanded ? 'Collapse' : 'Expand'} ${state.loc.name}`);
+  caret.textContent = expanded ? '▾' : '▸';
+  caret.addEventListener('click', () => {
+    setCardExpanded(state.loc.id, !isCardExpanded(state.loc.id), allIds);
+    onToggle?.();
+  });
   const title = document.createElement('h2');
   title.textContent = state.loc.name;
   const remove = document.createElement('button');
@@ -64,9 +116,17 @@ export function renderCard(
     cone.setAttribute('aria-label', `Confidence cone for ${state.loc.name}`);
     cone.textContent = '📈';
     cone.addEventListener('click', () => onCone(state.loc));
-    head.append(title, cone, remove);
+    head.append(caret, title, cone, remove);
   } else {
-    head.append(title, remove);
+    head.append(caret, title, remove);
+  }
+  // Collapsed, the header IS the card, so it has to carry the one number people open the
+  // app for. Expanded, the big .card-now block below owns it and this would be a duplicate.
+  if (!expanded && state.data) {
+    const peek = document.createElement('span');
+    peek.className = 'card-peek';
+    peek.textContent = `${fmtTemp(state.data.current.temperature_2m)} ${describeWeather(state.data.current.weather_code).glyph}`;
+    title.after(peek);
   }
   el.append(head);
 
