@@ -66,6 +66,8 @@ jobs:
       - run: python scripts/build_storm_ledger.py || echo "::warning::storm ledger refresh failed — deploying last-known-good"
       # Smoke Story: FIRMS VIIRS 24 h detections thinned to 0.25 deg clusters. Same rule.
       - run: python scripts/build_fire_clusters.py || echo "::warning::fire cluster refresh failed — deploying last-known-good"
+      # Marine: thin the 2 MB tide-station directory and bake every buoy's latest obs.
+      - run: python scripts/build_marine_stations.py || echo "::warning::marine station refresh failed — deploying last-known-good"
       # AI-vs-physics divergence: IFS + AIFS 2t via Range requests, 5 leads. Same rule.
       - run: python scripts/build_divergence.py || echo "::warning::divergence refresh failed — deploying last-known-good"
       - run: pnpm build

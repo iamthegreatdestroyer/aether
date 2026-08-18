@@ -24,6 +24,8 @@ const MIN_INTERVAL_MS: Record<string, number> = {
   // Keyed area queries: quota is 5000 transactions/10 min — 350 ms keeps us ~1/6th of it
   // even if every saved location queries all three VIIRS satellites at once.
   'firms-api': 350,
+  'noaa-coops': 500, // two calls per location (predictions + observed) on panel open
+  'open-meteo-marine': 1_000,
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];

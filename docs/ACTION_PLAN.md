@@ -1030,3 +1030,35 @@ honest platform split:
 - Found in passing: Vite 7's multi-page path needs Node 20 (`crypto.hash`); the local shell
   had been coasting on Node 18 while CI was on 20 all along. Local builds now go through
   `volta run --node 20.20.1` exactly as the README always said.
+
+## 12. The arbitrage strikes — scouting report targets, built
+
+Scouting (artifact, 2026-08-18) probed 14 endpoints across app categories where subscriptions
+gate public data. Four targets ranked; the owner asked for all four in order. Built as Aether
+MODULES, not separate apps: the contract, scheduler, ledger, map, units, CI and widget already
+exist, so each strike costs a fraction of a standalone — and the result is one app that
+replaces four subscriptions rather than four half-apps.
+
+### 12.1 🌊 Marine — the Navionics strike. SHIPPED 2026-08-18.
+
+Paid boating/fishing apps charge $30–100/yr; the substance is NOAA's own tides, NOAA's own
+buoys, and astronomy. Measured the same day: **CO-OPS tide predictions send
+`Access-Control-Allow-Origin: *`** — Tier A, browser-direct, keyless.
+
+- **Station resolution solved by baking, not by asking**: the CO-OPS directory is 2.0 MB of
+  JSON (3,499 stations with notices and disclaimers). `build_marine_stations.py` thins it to
+  268 KB of id/name/lat/lon, so nearest-station is a local haversine. Home's is 8726083
+  (Sarasota, Sarasota Bay) at 12.1 km.
+- **NDBC has no CORS — but publishes every station's latest obs in ONE file.** The cron bakes
+  `latest_obs.txt` (887 buoys, 194 KB), so nearest-buoy works for any location ever pinned,
+  same-origin, without a per-location request. `MM` means missing and stays null, never 0.
+- **Tide curve, not a tide table**: a tide is a shape, and "slack in an hour" reads off a
+  curve faster than off timestamps. Cosine interpolation between extremes (the rule of
+  twelfths IS this curve, coarsely sampled).
+- **The pairing no consumer app shows**: predicted height printed next to the *measured*
+  gauge reading, because real water also answers to wind, pressure and river flow. Stations
+  without a gauge say "prediction-only" rather than implying verification they can't do.
+- Moon phase computed here and **cross-checked against Skyfield: 39% illuminated, both** —
+  the passes.ts pattern reused (pure function, independent oracle).
+- Verified live at Home: falling toward low 1.2 ft in 4 h 44 min; buoy PMAF1 at 29 km
+  reporting 91 °F water (°F because it follows the units toggle); model waves 1.5 ft.

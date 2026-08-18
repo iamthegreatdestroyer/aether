@@ -535,3 +535,17 @@ html, body {
      tall as the one expanded card next to it. Bottom-align so each keeps its own height. */
   #cards { align-items: flex-end; }
 }
+
+/* ---- Marine panel ---- */
+.marine-dialog { max-width: 620px; }
+.marine-headline { font-size: 0.9rem; margin: 0.2rem 0 0.5rem; }
+.tide-hi { color: #6aa9ff; }
+.tide-lo { color: #b08968; }
+.tide-svg { width: 100%; height: auto; display: block; margin: 4px 0 8px; }
+.tide-area { fill: rgba(106, 169, 255, 0.14); }
+.tide-line { fill: none; stroke: #6aa9ff; stroke-width: 1.6; }
+.tide-now { stroke: var(--warn, #eab308); stroke-width: 1; stroke-dasharray: 3 3; }
+.tide-lbl { fill: var(--muted); font-size: 9px; }
+.marine-truth { font-size: 0.8rem; margin: 0.3rem 0; }
+.marine-src { font-size: 0.72rem; color: var(--muted); }
+.marine-buoy, .marine-wave { font-size: 0.84rem; margin: 0.45rem 0; }

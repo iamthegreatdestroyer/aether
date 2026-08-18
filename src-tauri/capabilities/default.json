@@ -30,6 +30,9 @@
           "url": "https://api.rainviewer.com/*"
         },
         {
+          "url": "https://api.tidesandcurrents.noaa.gov/*"
+        },
+        {
           "url": "https://api.v2.sondehub.org/*"
         },
         {
@@ -63,6 +66,9 @@
           "url": "https://kp.gfz.de/*"
         },
         {
+          "url": "https://marine-api.open-meteo.com/*"
+        },
+        {
           "url": "https://mesonet.agron.iastate.edu/*"
         },
         {
@@ -79,6 +85,9 @@
         },
         {
           "url": "https://tiles.openfreemap.org/*"
+        },
+        {
+          "url": "https://www.ndbc.noaa.gov/*"
         },
         {
           "url": "https://www.nhc.noaa.gov/*"

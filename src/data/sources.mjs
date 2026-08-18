@@ -524,6 +524,72 @@ export const SOURCES = [
     verifiedAt: '2026-08-18',
   },
   {
+    id: 'noaa-coops',
+    name: 'NOAA CO-OPS tides & water levels',
+    role: 'Tide predictions AND observed water level — the marine ledger\'s forecast/truth pair',
+    baseUrl: 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter',
+    probeUrl:
+      'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=aether&date=today&datum=MLLW&station=8726520&time_zone=gmt&units=english&interval=hilo&format=json',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 60,
+    mustNotContain: '<html',
+    license: 'US Government work, public domain',
+    attribution: 'NOAA CO-OPS',
+    rateLimit: 'no published cap; app caches and asks per location, not per view',
+    notes:
+      'MEASURED 2026-08-18: Access-Control-Allow-Origin * — Tier A, browser-direct, keyless. ' +
+      'This is the Navionics arbitrage in one line: the tide data those apps resell at ' +
+      '$50/yr answers a plain fetch. Predictions AND observations share this endpoint, which ' +
+      'is what makes tide VERIFICATION possible (a prediction with a measured truth). ' +
+      'Station directory is 2.0 MB and is thinned by the cron, not fetched by clients.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
+    id: 'ndbc-buoys',
+    name: 'NOAA NDBC buoy observations',
+    role: 'Sea state truth — water temp, wave height/period, wind at the nearest buoy',
+    probeUrl: 'https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt',
+    tier: 'B',
+    cors: 'none',
+    expectStatus: [200],
+    minBytes: 10000,
+    mustNotContain: '<html',
+    license: 'US Government work, public domain',
+    attribution: 'NOAA NDBC',
+    rateLimit: 'one whole-network file per cron run; never per location',
+    notes:
+      'MEASURED 2026-08-18: no Access-Control-Allow-Origin, so Tier B. The saving grace is ' +
+      'latest_obs.txt — EVERY station\'s latest observation in one ~106 KB file — so one ' +
+      'cron bake serves nearest-buoy for any location the owner ever pins. Fixed-width ' +
+      'columns with MM for missing: a missing value must stay null, never 0.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
+    id: 'open-meteo-marine',
+    name: 'Open-Meteo Marine',
+    role: 'Wave height, period and direction forecast',
+    baseUrl: 'https://marine-api.open-meteo.com/v1/marine',
+    probeUrl:
+      'https://marine-api.open-meteo.com/v1/marine?latitude=27.3&longitude=-83&hourly=wave_height&forecast_days=1',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 100,
+    license: 'CC BY 4.0',
+    attribution: 'Open-Meteo.com',
+    rateLimit: 'shared with the forecast lane: 10k/day, scheduler-enforced',
+    notes:
+      'Same family and terms as the main forecast API (already in this contract), different ' +
+      'sub-domain. Returns nulls for inland points rather than erroring — the UI reports ' +
+      'that honestly as "no water here" instead of drawing a flat zero line.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
     id: 'celestrak',
     name: 'CelesTrak GP element sets',
     role: 'Station passes — ISS/Tiangong visible-pass prediction in the Space panel',

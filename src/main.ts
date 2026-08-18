@@ -27,6 +27,7 @@ import { runScorer, summarize } from './data/scorer';
 import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
 import { buildSmokeDialog, renderSmoke } from './ui/smokePanel';
+import { buildMarineDialog, renderMarine } from './ui/marinePanel';
 import { FiresLayer } from './layers/fires';
 import { LightningLayer } from './layers/lightning';
 import { isThisWeird } from './data/climatology';
@@ -713,6 +714,12 @@ smokeToggle.addEventListener('click', () => {
     else void firesLayer.enable().catch((err) => console.warn('[fires]', err));
     smokeToggle.classList.toggle('is-on', firesLayer.isEnabled);
   });
+});
+
+const marineDialog = buildMarineDialog();
+document.getElementById('marine-toggle')!.addEventListener('click', () => {
+  marineDialog.showModal();
+  void renderMarine(marineDialog, locations);
 });
 
 const spaceDialog = buildSpaceDialog();
