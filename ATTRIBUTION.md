@@ -7,7 +7,7 @@ Every string below must be displayed in the app on the **Data Sources** screen.
 These obligations are **not** waived by the personal-use scope — CC BY attaches to display
 of the data itself, regardless of whether the software is ever distributed.
 
-19 sources require attribution; 15 do not.
+20 sources require attribution; 15 do not.
 
 ## Required
 
@@ -30,6 +30,7 @@ of the data itself, regardless of whether the software is ever distributed.
 | Open-Meteo Marine | **Open-Meteo.com** | CC BY 4.0 |
 | ADSB.lol (community ADS-B aggregator) | **Aircraft data © ADSB.lol contributors, ODbL 1.0** | ODbL 1.0 — attribution AND licence notice required |
 | adsbdb (callsign → route database) | **Route data from adsbdb.com** | Free community database; attribution requested |
+| Overpass API (OpenStreetMap) | **Trail data © OpenStreetMap contributors, ODbL 1.0** | ODbL 1.0 — attribution AND licence notice required |
 | OpenFreeMap | **© OpenStreetMap contributors** | ODbL (OpenStreetMap data) |
 | ECMWF Open Data (IFS + AIFS) | **This service is based on data and products of ECMWF** | CC BY 4.0 since 2025-10-01 |
 
@@ -38,7 +39,6 @@ of the data itself, regardless of whether the software is ever distributed.
 Displayed anyway as provenance — the Data Sources screen is part of the trust identity.
 
 - **NWS api.weather.gov (points)** — US Government work — public domain
-- **NWS api.weather.gov (alerts)** — US Government work — public domain
 - **SWPC planetary K index (ESTIMATE)** — Public domain
 - **SWPC solar wind speed (summary)** — Public domain
 - **SWPC IMF Bt/Bz (summary)** — Public domain
@@ -49,6 +49,7 @@ Displayed anyway as provenance — the Data Sources screen is part of the trust 
 - **NOAA OVATION aurora** — Public domain
 - **aviationweather.gov (AWC)** — Public domain
 - **NWS active alerts (api.weather.gov)** — US Government work, public domain
+- **USGS 3DEP elevation point service** — US Government work, public domain
 - **CelesTrak GP element sets** — Free; no formal attribution
 - **NOAA NHC/CPHC ATCF** — US Government work — public domain
 - **NOAA NOMADS GFS filter** — Public domain

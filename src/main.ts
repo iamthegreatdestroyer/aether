@@ -28,6 +28,7 @@ import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
 import { buildSmokeDialog, renderSmoke } from './ui/smokePanel';
 import { buildMarineDialog, renderMarine } from './ui/marinePanel';
+import { buildTrailsDialog, renderTrails } from './ui/trailsPanel';
 import { fetchAlertsForPoint } from './data/alerts';
 import { AlertsLayer } from './layers/alerts';
 import { FiresLayer } from './layers/fires';
@@ -770,6 +771,12 @@ smokeToggle.addEventListener('click', () => {
     else void firesLayer.enable().catch((err) => console.warn('[fires]', err));
     smokeToggle.classList.toggle('is-on', firesLayer.isEnabled);
   });
+});
+
+const trailsDialog = buildTrailsDialog();
+document.getElementById('trails-toggle')!.addEventListener('click', () => {
+  trailsDialog.showModal();
+  void renderTrails(trailsDialog, locations);
 });
 
 const marineDialog = buildMarineDialog();

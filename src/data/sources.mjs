@@ -648,6 +648,50 @@ export const SOURCES = [
   },
 
   {
+    id: 'overpass',
+    name: 'Overpass API (OpenStreetMap)',
+    role: 'Named trails near a location — the AllTrails/Gaia strike',
+    baseUrl: 'https://overpass-api.de/api/interpreter',
+    probeUrl:
+      'https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%3Bway%5B%22highway%22%3D%22path%22%5D(27.35%2C-82.5%2C27.45%2C-82.4)%3Bout%20count%3B',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 60,
+    mustNotContain: '<html',
+    license: 'ODbL 1.0 — attribution AND licence notice required',
+    attribution: 'Trail data © OpenStreetMap contributors, ODbL 1.0',
+    rateLimit: 'shared public instance — query on panel open only, never polled',
+    notes:
+      'MEASURED 2026-08-18: CORS *, keyless, 134 trail ways in one small Sarasota box. This ' +
+      'whole lane works in the BROWSER, unlike flight — trails run on the phone too. Overpass ' +
+      'is a shared volunteer instance: one bounded query per panel open, a 25 s server-side ' +
+      'timeout in the query itself, and no polling. Unnamed ways are excluded client-side.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
+    id: 'usgs-3dep',
+    name: 'USGS 3DEP elevation point service',
+    role: 'Ground elevation — the topo half of the trails strike',
+    baseUrl: 'https://epqs.nationalmap.gov/v1/json',
+    probeUrl: 'https://epqs.nationalmap.gov/v1/json?x=-82.45&y=27.4&units=Meters&wkid=4326',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 30,
+    mustNotContain: '<html',
+    license: 'US Government work, public domain',
+    attribution: null,
+    rateLimit: 'one point per panel open',
+    notes:
+      'MEASURED 2026-08-18: CORS *, keyless. US coverage only by definition of the dataset; ' +
+      'returns a large negative sentinel outside it, which the client reads as "no answer" ' +
+      'rather than as a depth below sea level.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
     id: 'celestrak',
     name: 'CelesTrak GP element sets',
     role: 'Station passes — ISS/Tiangong visible-pass prediction in the Space panel',

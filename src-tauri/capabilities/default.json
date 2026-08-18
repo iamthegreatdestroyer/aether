@@ -63,6 +63,9 @@
           "url": "https://ensemble-api.open-meteo.com/*"
         },
         {
+          "url": "https://epqs.nationalmap.gov/*"
+        },
+        {
           "url": "https://firms.modaps.eosdis.nasa.gov/*"
         },
         {
@@ -85,6 +88,9 @@
         },
         {
           "url": "https://nomads.ncep.noaa.gov/*"
+        },
+        {
+          "url": "https://overpass-api.de/*"
         },
         {
           "url": "https://services.swpc.noaa.gov/*"

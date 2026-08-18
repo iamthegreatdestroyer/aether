@@ -29,6 +29,8 @@ const MIN_INTERVAL_MS: Record<string, number> = {
   'adsb-lol': 3_000, // volunteer network: one viewport query per poll, never a sweep
   adsbdb: 1_000,
   'nws-alerts': 1_000,
+  overpass: 3_000, // shared volunteer instance — be a good guest
+  'usgs-3dep': 1_000,
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];

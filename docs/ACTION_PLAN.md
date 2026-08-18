@@ -1107,3 +1107,35 @@ keyless, live. 261 alerts nationwide at probe time, 86 with polygons.
 - Housekeeping the probe forced: an unconsumed P0-era `nws-alerts` stub existed with the same
   id — the duplicate was caught by the contract check and merged, and its probe URL used
   `limit=1`, which api.weather.gov answers 400 to alongside `status`.
+
+### 12.4 🥾 Trails — the AllTrails strike. SHIPPED 2026-08-18.
+
+Both lanes measured CORS-open and keyless, so unlike flight this one runs everywhere,
+phone included: Overpass for named trails (ODbL), USGS 3DEP for elevation.
+
+- **What is NOT claimed**: their real moat is offline map packs, and this is not that. The
+  PMTiles path stays recorded as future work rather than implied by a feature that doesn't
+  do it. The panel says so in its own footer.
+- **What Aether adds instead**: conditions sampled AT each trail rather than at your pin —
+  one multi-location Open-Meteo request covers every trail listed (the trajectory sampler's
+  trick), plus the alert banner if a warning is in force over the area.
+- Unnamed ways are excluded: OSM is full of desire lines and driveway spurs tagged `path`,
+  and "unnamed path, 40 m" is noise, not a trail guide. Segments sharing a name are summed,
+  because a hiker thinks of one trail where OSM stores fifteen ways.
+- Dedup is case-insensitive after live output showed "Flo's trail" and "Flo's Trail" listed
+  as two trails — a mapper's shift key is not a second trail.
+- Verified at Home: 12 named trails within 15 km, feels-like 98 °F (air 90 °F) sampled per
+  trail, surfaces from OSM, elevation 4 m, heat advisory banner in force.
+
+### 12.5 The scoreboard
+
+| strike | subscription replaced | tier | verified |
+|---|---|---|---|
+| 🌊 Marine | Navionics $50/yr | A (tides) + B (buoys) | tide curve, buoy PMAF1, moon = Skyfield |
+| ✈ Flight | Flightradar24 | A-native (desktop) | 174 aircraft, route lookup, self-check |
+| ⚠ Alerts | RadarScope-class safety | A | Heat Advisory on card, 85 polygons |
+| 🥾 Trails | AllTrails+ $36 / Gaia $40 | A | 12 trails with per-trail weather |
+
+Contract grew 16 → 36 sources across the day. Every strike kept the same discipline: probe
+first, let the probe correct the plan (adsbdb's tier, the alerts duplicate, MRMS's template),
+and refuse to bake anything whose value is freshness.
