@@ -14,8 +14,11 @@
  */
 
 import { STORE_LATEST, dbGet, dbPut } from './db';
-import { fetchJson, hasNativeTransport } from './fetcher';
+import { fetchJson, fetchText, hasNativeTransport } from './fetcher';
 import { source } from './sources.mjs';
+import { azWord, computePasses } from './passes';
+import type { Pass } from './passes';
+import type { SavedLocation } from '../ui/locations';
 
 export interface KpReading {
   time: string;
@@ -104,6 +107,101 @@ export async function fetchSolarWindNow(): Promise<SolarWindNow> {
   return { speedKms: w.proton_speed, bt: m.bt, bz: m.bz_gsm, time: w.time_tag };
 }
 
+// ------------------------------------------------- station passes (CelesTrak)
+
+/** The two crewed stations — the rest of the group is modules, cargo and debris. */
+const STATIONS = [
+  { match: 'ISS (ZARYA)', label: 'ISS' },
+  { match: 'CSS (TIANHE)', label: 'Tiangong' },
+] as const;
+
+const TLE_TTL_MS = 6 * 60 * 60 * 1000; // CelesTrak's polling floor is a HARD 2 h; stay far above it
+const PASS_WINDOW_H = 48;
+
+interface TleCache {
+  fetchedAt: number;
+  text: string;
+}
+
+async function stationTles(): Promise<Map<string, [string, string]>> {
+  const cached = await dbGet<TleCache>(STORE_LATEST, 'tle:stations');
+  let text: string;
+  if (cached && Date.now() - cached.fetchedAt < TLE_TTL_MS) {
+    text = cached.text;
+  } else {
+    text = await fetchText('celestrak', source('celestrak').baseUrl!);
+    await dbPut(STORE_LATEST, { fetchedAt: Date.now(), text } satisfies TleCache, 'tle:stations');
+  }
+  const lines = text.split('\n').map((l) => l.trimEnd());
+  const out = new Map<string, [string, string]>();
+  for (let i = 0; i + 2 < lines.length + 1; i++) {
+    const name = lines[i]?.trim();
+    for (const st of STATIONS) {
+      if (name === st.match && lines[i + 1]?.startsWith('1 ') && lines[i + 2]?.startsWith('2 ')) {
+        out.set(st.label, [lines[i + 1]!, lines[i + 2]!]);
+      }
+    }
+  }
+  return out;
+}
+
+export interface StationPass {
+  station: string;
+  pass: Pass;
+  /** Cloud cover forecast at peak time; null when the forecast does not reach it. */
+  cloudPct: number | null;
+  verdict: { verdict: string; cls: string };
+}
+
+/** Cloud cover by UTC hour for the pass window — one small call per location. */
+async function cloudByHour(loc: SavedLocation): Promise<Map<string, number>> {
+  const om = source('open-meteo');
+  const u = new URL(om.baseUrl!);
+  u.searchParams.set('latitude', loc.lat.toFixed(3));
+  u.searchParams.set('longitude', loc.lon.toFixed(3));
+  u.searchParams.set('hourly', 'cloud_cover');
+  u.searchParams.set('forecast_days', '3');
+  u.searchParams.set('timezone', 'UTC');
+  const d = await fetchJson<{ hourly: { time: string[]; cloud_cover: number[] } }>(
+    'open-meteo',
+    u.toString(),
+  );
+  const map = new Map<string, number>();
+  d.hourly.time.forEach((t, i) => map.set(t.slice(0, 13), d.hourly.cloud_cover[i]!));
+  return map;
+}
+
+function passVerdict(cloudPct: number | null): { verdict: string; cls: string } {
+  if (cloudPct === null) return { verdict: 'cloud forecast unavailable', cls: 'aurora-maybe' };
+  if (cloudPct <= 40) return { verdict: 'go look', cls: 'aurora-go' };
+  if (cloudPct <= 80) return { verdict: 'sky permitting', cls: 'aurora-maybe' };
+  return { verdict: 'overcast — pass hidden', cls: 'aurora-clouded' };
+}
+
+/**
+ * Next VISIBLE pass of each station over a location within 48 h, crossed with the cloud
+ * forecast at peak — the aurora × cloud pattern applied to spacecraft. "No visible pass"
+ * is a real answer: most passes happen in daylight or with the station in shadow.
+ */
+export async function nextVisiblePasses(loc: SavedLocation): Promise<StationPass[]> {
+  const [tles, clouds] = await Promise.all([
+    stationTles(),
+    cloudByHour(loc).catch(() => new Map<string, number>()),
+  ]);
+  const out: StationPass[] = [];
+  for (const [label, [l1, l2]] of tles) {
+    const passes = computePasses(l1, l2, loc.lat, loc.lon, Date.now(), PASS_WINDOW_H);
+    const vis = passes.find((p) => p.visible);
+    if (!vis) continue;
+    const cloudPct =
+      clouds.get(new Date(vis.maxElevMs).toISOString().slice(0, 13)) ?? null;
+    out.push({ station: label, pass: vis, cloudPct, verdict: passVerdict(cloudPct) });
+  }
+  return out;
+}
+
+export { azWord };
+
 // ------------------------------------------------------------ CME watch (DONKI)
 
 export interface CmeOutlook {
@@ -142,18 +240,31 @@ const CME_WINDOW_DAYS = 7;
  * "Quiet" (no Earth-directed run in the window) is a real answer and renders as one;
  * a thrown fetch error is a different answer and renders as "unavailable".
  */
+const CME_FAIL_TTL_MS = 10 * 60 * 1000;
+let cmeFailedAt = 0;
+
 export async function fetchCmeOutlook(): Promise<CmeOutlook> {
   const cached = await dbGet<CmeCache>(STORE_LATEST, 'cme1');
   if (cached && Date.now() - cached.fetchedAt < CME_TTL_MS) return cached.outlook;
+  // Negative cache: a DONKI quota 429 lasts the hour — without this, EVERY panel open
+  // burns the scheduler's full 21 s backoff before rendering "unavailable" (felt live
+  // 2026-08-18 when the probe runs exhausted the local IP's quota mid-verification).
+  if (Date.now() - cmeFailedAt < CME_FAIL_TTL_MS) throw new Error('DONKI recently unavailable');
 
   const s = source('donki');
   const end = new Date();
   const start = new Date(end.getTime() - CME_WINDOW_DAYS * 24 * 3600 * 1000);
   const day = (d: Date) => d.toISOString().slice(0, 10);
-  const sims = await fetchJson<EnlilSim[]>(
-    'donki',
-    `${s.baseUrl}/WSAEnlilSimulations?startDate=${day(start)}&endDate=${day(end)}&api_key=DEMO_KEY`,
-  );
+  let sims: EnlilSim[];
+  try {
+    sims = await fetchJson<EnlilSim[]>(
+      'donki',
+      `${s.baseUrl}/WSAEnlilSimulations?startDate=${day(start)}&endDate=${day(end)}&api_key=DEMO_KEY`,
+    );
+  } catch (err) {
+    cmeFailedAt = Date.now();
+    throw err;
+  }
 
   const earthDirected = sims.filter((x) => x.isEarthGB && x.estimatedShockArrivalTime);
   // Freshest run whose predicted arrival is still ahead (or within the last 12 h — "may be

@@ -523,16 +523,22 @@ export const SOURCES = [
   {
     id: 'celestrak',
     name: 'CelesTrak GP element sets',
-    role: 'Satellite passes (there is no public SpaceX telemetry API — this is the real answer)',
+    role: 'Station passes — ISS/Tiangong visible-pass prediction in the Space panel',
+    baseUrl: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle',
     probeUrl: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json',
     tier: 'A',
     cors: 'open',
     expectStatus: [200],
     license: 'Free; no formal attribution',
     attribution: null,
-    rateLimit: 'HARD 2-hour polling floor; no bulk scraping',
-    notes: 'Cache for >= 2 h. Violating the polling floor gets you blocked.',
-    verifiedAt: '2026-08-16',
+    rateLimit: 'HARD 2-hour polling floor; no bulk scraping — app caches 6 h',
+    notes:
+      'Cache for >= 2 h. Violating the polling floor gets you blocked. CONSUMED as of ' +
+      '2026-08-18 (the contract\'s last unconsumed entry): src/data/passes.ts propagates ' +
+      'with satellite.js v5 (v7 ships a wasm build whose node: imports break bundling), ' +
+      'and the pure core was cross-checked against Skyfield — 12/12 NYC passes matched to ' +
+      'the minute, max elevation within ~1 degree (30 s sampling).',
+    verifiedAt: '2026-08-18',
   },
 
   {

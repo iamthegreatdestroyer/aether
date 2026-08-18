@@ -8,11 +8,13 @@
 
 import {
   auroraVerdict,
+  azWord,
   fetchCmeOutlook,
   fetchKpSeries,
   fetchOvation,
   fetchSolarWindNow,
   kpSeverity,
+  nextVisiblePasses,
   sampleAurora,
 } from '../data/space';
 import type { CmeOutlook } from '../data/space';
@@ -122,6 +124,30 @@ export async function renderSpace(
     }),
   );
 
+  // ---- station passes per location (ISS/Tiangong × cloud — CelesTrak, cached 6 h)
+  const passRows: string[] = [];
+  for (const loc of locations) {
+    try {
+      const sp = await nextVisiblePasses(loc);
+      if (sp.length === 0) {
+        passRows.push(`<tr><td>${loc.name}</td><td colspan="4" class="muted">no visible pass in the next 48 h — daylight or shadow the whole way</td></tr>`);
+        continue;
+      }
+      for (const x of sp) {
+        const p = x.pass;
+        const hrs = (p.aosMs - Date.now()) / 3_600_000;
+        const inWord = hrs < 1.5 ? `in ${Math.max(1, Math.round(hrs * 60))} min` : `in ${Math.round(hrs)} h`;
+        passRows.push(`<tr><td>${loc.name}</td>
+          <td>${x.station} · ${new Date(p.aosMs).toISOString().slice(5, 16).replace('T', ' ')}Z (${inWord})</td>
+          <td class="num">max ${Math.round(p.maxElevDeg)}° · ${azWord(p.aosAzDeg)}→${azWord(p.losAzDeg)}</td>
+          <td class="num">${x.cloudPct !== null ? x.cloudPct + '%' : '—'}</td>
+          <td class="${x.verdict.cls}">${x.verdict.verdict}</td></tr>`);
+      }
+    } catch (err) {
+      passRows.push(`<tr><td>${loc.name}</td><td colspan="4" class="muted">pass prediction failed: ${err instanceof Error ? err.message : err}</td></tr>`);
+    }
+  }
+
   // ---- balloon truth per location (sequential — SondeHub politeness)
   const balloonRows: string[] = [];
   for (const loc of locations) {
@@ -162,6 +188,10 @@ export async function renderSpace(
     <h3>Aurora × cloud ${ovationMeta ? `<span class="kp-note">OVATION forecast ${ovationMeta.forecastTime.slice(11, 16)}Z</span>` : ''}</h3>
     <table class="receipts-table"><thead><tr><th>location</th><th>aurora</th><th>cloud</th><th>can you see it?</th></tr></thead>
     <tbody>${auroraRows.join('')}</tbody></table>
+
+    <h3>Stations overhead <span class="kp-note">CelesTrak elements · SGP4 cross-checked vs Skyfield · visible = you dark, station sunlit</span></h3>
+    <table class="receipts-table"><thead><tr><th>location</th><th>next visible pass</th><th>track</th><th>cloud</th><th>go out?</th></tr></thead>
+    <tbody>${passRows.join('')}</tbody></table>
 
     <h3>Balloon truth <span class="kp-note">SondeHub (CC BY-SA 2.0) — sonde and model shown side by side, never blended</span></h3>
     <table class="receipts-table"><thead><tr><th>location</th><th>nearest sonde</th><th>sonde measured</th><th>model says</th><th>Δ</th></tr></thead>

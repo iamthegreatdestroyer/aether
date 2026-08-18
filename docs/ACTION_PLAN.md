@@ -822,3 +822,24 @@ source-side paths, not rendered-pixel paths.
 
 Verified live: nearest dot to (-100, 40) → "0.4 MW · 1 detection · seen 08:07Z (92 min ago)
 · 2143 km W of New York · ↛ away from New York — wind at fire 5.9 m/s, 76° off-axis".
+
+## 11. Stations overhead — SHIPPED 2026-08-18. The contract's last promise, kept.
+
+CelesTrak sat in the contract from day one with role "satellite passes" and zero consumers.
+Now: ISS + Tiangong visible-pass prediction in the Space panel — the aurora × cloud pattern
+applied to spacecraft.
+
+- **src/data/passes.ts is deliberately PURE** (TLE + coords in, passes out): the spike
+  bundles the exact shipped code and cross-checks it against Skyfield — 12/12 NYC passes
+  matched to the minute, max elevation within ~1° (30 s sampling). The near-zenith pass
+  read 87.2° vs 88.9° — sampling brushing a peak, not disagreement.
+- **Visibility is the feature**: observer in civil-twilight-or-darker (Almanac low-precision
+  sun) AND station sunlit (cylindrical shadow test). "No visible pass in 48 h" is a real
+  answer — most passes are daylight or shadow.
+- satellite.js pinned to v5: v7 ships a wasm build whose node: imports break bundling.
+- TLEs cached 6 h against CelesTrak's HARD 2 h polling floor.
+- Verified live: NYC's panel row IS the cross-checked pass (08-19 08:20Z, max 33°, 13%
+  cloud → "go look"); London's passes exist but 100% overcast → "overcast — pass hidden";
+  Tokyo 78° near-overhead tonight → "go look".
+- Drive-by fix: DONKI failures are negative-cached 10 min — a quota 429 used to cost every
+  panel open the scheduler's full 21 s backoff before rendering "unavailable".

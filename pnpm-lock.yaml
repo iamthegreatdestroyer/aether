@@ -20,6 +20,9 @@ importers:
       maplibre-gl:
         specifier: 5.24.0
         version: 5.24.0
+      satellite.js:
+        specifier: ^5.0.0
+        version: 5.0.0
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.11.4
@@ -529,6 +532,9 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  satellite.js@5.0.0:
+    resolution: {integrity: sha512-ie3yiJ2LJAJIhVUKdYhgp7V0btXKAMImDjRnuaNfJGl8rjwP2HwVIh4HLFcpiXYEiYwXc5fqh5+yZqCe6KIwWw==}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -974,6 +980,8 @@ snapshots:
       '@rollup/rollup-win32-x64-gnu': 4.62.4
       '@rollup/rollup-win32-x64-msvc': 4.62.4
       fsevents: 2.3.3
+
+  satellite.js@5.0.0: {}
 
   source-map-js@1.2.1: {}
 
