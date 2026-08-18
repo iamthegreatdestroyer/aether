@@ -9,5 +9,12 @@ export default defineConfig({
     // All interfaces, so the P0 exit test ("PWA installs on phone") can run over LAN.
     host: true,
   },
-  build: { target: 'es2022' },
+  build: {
+    target: 'es2022',
+    rollupOptions: {
+      // Two pages, one origin: the app and the desktop widget window share localStorage
+      // (units, locations, Home) with zero plumbing.
+      input: { main: 'index.html', widget: 'widget.html' },
+    },
+  },
 });

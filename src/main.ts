@@ -186,6 +186,30 @@ window.addEventListener('aether:units', () => {
   renderDivLegend();
 });
 
+// 🪟 Desktop widget: only under Tauri — a browser tab has no second window to offer.
+// Visibility is remembered so the widget survives app restarts.
+const WIDGET_PREF = 'aether.widget';
+if ('__TAURI_INTERNALS__' in window) {
+  const b = document.createElement('button');
+  b.id = 'widget-toggle';
+  b.textContent = '🪟 Widget';
+  b.title = 'Show a compact forecast strip pinned to the desktop';
+  document.getElementById('unit-toggle')!.before(b);
+  const setWidget = async (show: boolean) => {
+    const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+    const w = await WebviewWindow.getByLabel('widget');
+    if (!w) return;
+    if (show) await w.show();
+    else await w.hide();
+    b.classList.toggle('is-on', show);
+    localStorage.setItem(WIDGET_PREF, show ? 'on' : 'off');
+  };
+  b.addEventListener('click', () =>
+    void setWidget(localStorage.getItem(WIDGET_PREF) !== 'on'),
+  );
+  if (localStorage.getItem(WIDGET_PREF) === 'on') void setWidget(true);
+}
+
 // 📍 Home: one permission prompt, then the device position becomes the first location.
 // Re-pinning moves the same entry (stable id) — 2-decimal rounding in setHomeLocation keeps
 // the ledger key stable across GPS jitter; an actual move (> ~1 km) honestly starts fresh.

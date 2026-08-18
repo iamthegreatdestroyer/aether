@@ -1010,3 +1010,23 @@ one number, which is why guessing would have failed.
 
 Method note: `syncRailHeight` sets the property synchronously and again on rAF, because rAF
 never fires while a page is not compositing — the same trap as `map.on('load')` in P2.
+
+### 11.10 Desktop widget — the Windy-widget idea, Tauri-style (2026-08-18)
+
+The owner asked for Windy-like widgets (with the Android widget gallery as reference). The
+honest platform split:
+
+- **Android**: a WebAPK cannot register home-screen widgets — that needs native code
+  (AppWidgetProvider/Glance). A small Kotlin companion app is a real but SEPARATE project,
+  recorded as an open direction, not attempted from here.
+- **Windows**: buildable immediately. The Tauri shell gains a second window — frameless,
+  transparent, skip-taskbar, always-on-bottom — a Rainmeter-style strip that lives ON the
+  desktop: location name, current temp + glyph, 5-day hi/lo with precip bars, drag anywhere.
+- Being a same-origin second window, it shares localStorage with the app: °F/°C, saved
+  locations and the Home pin apply with zero plumbing; a `storage` listener re-renders on
+  unit flips. Toggled by a 🪟 button (desktop only), visibility remembered across restarts.
+- Widget window proves itself by writing a `widget: rendered` line to the self-check file —
+  the G0.6 files-are-the-truth-channel pattern's third application.
+- Found in passing: Vite 7's multi-page path needs Node 20 (`crypto.hash`); the local shell
+  had been coasting on Node 18 while CI was on 20 all along. Local builds now go through
+  `volta run --node 20.20.1` exactly as the README always said.
