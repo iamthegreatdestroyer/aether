@@ -1,6 +1,6 @@
 {
   "name": "aether",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "A free, personal-use weather app: Windy-class visualization, a forecast-verification ledger, and the atmosphere-to-space chain. $0/month.",

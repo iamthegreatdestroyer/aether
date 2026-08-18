@@ -4,14 +4,26 @@ A free, personal-use weather app: Windy-class visualization, a forecast-verifica
 that compounds with use, and the atmosphere-to-space chain nobody fuses. **$0/month, no
 backend, no accounts, no ads.**
 
-> **Status: P0–P4 shipped, live at
-> [iamthegreatdestroyer.github.io/aether](https://iamthegreatdestroyer.github.io/aether/).**
-> Forecast cards with offline-first boot · million-particle wind map (60 fps on a Galaxy S25+
-> at the full 1M count) · LibreWXR radar with nowcast frames and a recovering
-> RainViewer→IEM failover chain · VIIRS satellite · four-model forecast receipts scored
-> against real observations (*Who Was Right?*) · atmosphere-to-space panel with live
-> radiosondes (*Balloon Truth*). Tier B runs on GitHub Actions: wind textures refresh
-> 6-hourly, the endpoint contract is probed daily.
+> **Status: v0.2.0 — the full roadmap (P0–P6), all four Windy-tour features, and the entire
+> deferred backlog are shipped.** Live at
+> [iamthegreatdestroyer.github.io/aether](https://iamthegreatdestroyer.github.io/aether/);
+> also an installable PWA (60 fps at 1M particles on a Galaxy S25+) and a Tauri Windows
+> desktop app whose Rust-side transport unlocks the CORS-closed sources (official GFZ Kp,
+> aviation METAR truth for the ledger).
+>
+> Forecast cards with offline-first boot · million-particle wind at four altitudes
+> (Sfc/850/500/250 hPa) · radar with a recovering failover chain · VIIRS satellite ·
+> ⚡ **live lightning** (GLM granules parsed in-browser, ~20 s cadence) · 🔥 **Smoke Story**
+> (FIRMS fires — live to ~20 min with a free MAP_KEY — ray-tested against surface wind, with
+> PM2.5 ground truth and per-dot receipts) · **"Is this weird?"** (73-year ERA5 percentile
+> context) · **"Who Was Right?"** four-model receipts scored against real observations ·
+> storm ledger (live NHC verification vs official + model aids) · route trajectory sampling ·
+> honesty labels + ensemble confidence cones · IFS-vs-AIFS divergence layer · CME watch with
+> Enlil arrival countdowns · aurora × cloud · **ISS/Tiangong visible passes × cloud**
+> (SGP4 cross-checked against Skyfield) · live radiosondes (*Balloon Truth*).
+>
+> Tier B runs on GitHub Actions: wind textures, storm ledger, fire clusters and divergence
+> refresh 6-hourly; the endpoint contract (31 sources) is probed daily.
 >
 > ```bash
 > volta run --node 20.20.1 -- pnpm -C aether dev   # http://localhost:5175
@@ -39,7 +51,7 @@ Source research: `../Kimi_Agent_Free Weather App Proposals/`.
 node scripts/probe-sources.mjs
 ```
 
-Last full run: **24/24 sources matched**, 2026-08-16.
+Last full run: **31/31 sources matched**, 2026-08-18.
 
 ## Why the probe exists
 
@@ -73,5 +85,7 @@ called that healthy.
 
 ## Next
 
-P5 (Confidence Cone + IFS-vs-AIFS divergence layer) and P6 (Tauri desktop, de-risked by
-G0.6) remain. See [`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md).
+The roadmap is complete. Open directions (each needs a deliberate decision, not a keyboard):
+Proposal 2's mesh (`packages/mesh-bridge` stays reserved), MTG-LI European lightning when an
+open lane appears, and the ledger's leaderboard once enough scored days accumulate. See
+[`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md) — §10–11 record how each deferred item fell.
