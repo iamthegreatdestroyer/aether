@@ -40,7 +40,7 @@ import { balloonTruth } from './data/sondes';
 import { registerLayer } from './layers/registry';
 import { renderCard } from './ui/forecastCard';
 import type { CardState } from './ui/forecastCard';
-import { addLocation, loadLocations, locationKey, removeLocation } from './ui/locations';
+import { addLocation, loadLocations, locationKey, removeLocation, setHomeLocation } from './ui/locations';
 import type { SavedLocation } from './ui/locations';
 import { buildSourcesDialog, renderFooter } from './ui/attribution';
 import { WIND_LEVELS, WindLayer } from './particles/windLayer';
@@ -121,7 +121,7 @@ function syncMarkers(): void {
   }
   for (const loc of locations) {
     if (!markers.has(loc.id)) {
-      const marker = new maplibregl.Marker({ color: '#6aa9ff' })
+      const marker = new maplibregl.Marker({ color: loc.id === 'home' ? '#ffd24a' : '#6aa9ff' })
         .setLngLat([loc.lon, loc.lat])
         .setPopup(new maplibregl.Popup({ closeButton: false }).setText(loc.name));
       marker.addTo(map);
@@ -129,6 +129,48 @@ function syncMarkers(): void {
     }
   }
 }
+
+// 📍 Home: one permission prompt, then the device position becomes the first location.
+// Re-pinning moves the same entry (stable id) — 2-decimal rounding in setHomeLocation keeps
+// the ledger key stable across GPS jitter; an actual move (> ~1 km) honestly starts fresh.
+const homePin = document.getElementById('home-pin') as HTMLButtonElement;
+homePin.addEventListener('click', () => {
+  if (!('geolocation' in navigator)) {
+    window.alert('This browser exposes no geolocation API.');
+    return;
+  }
+  homePin.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      homePin.disabled = false;
+      try {
+        locations = setHomeLocation(locations, pos.coords.latitude, pos.coords.longitude);
+      } catch (err) {
+        window.alert(String(err instanceof Error ? err.message : err));
+        return;
+      }
+      // The marker may exist at the OLD home position — rebuild it.
+      markers.get('home')?.remove();
+      markers.delete('home');
+      syncMarkers();
+      const home = locations[0]!;
+      map.flyTo({ center: [home.lon, home.lat], zoom: Math.max(map.getZoom(), 6) });
+      void hydrateLocation(home);
+      renderCards();
+    },
+    (err) => {
+      homePin.disabled = false;
+      const why =
+        err.code === err.PERMISSION_DENIED
+          ? 'location permission denied — grant it in the browser and try again'
+          : err.code === err.POSITION_UNAVAILABLE
+            ? 'position unavailable (no GPS/network fix)'
+            : 'location request timed out';
+      window.alert(`Could not pin Home: ${why}.`);
+    },
+    { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+  );
+});
 
 map.on('click', (e) => {
   // Route mode captures clicks as waypoints; location-adding resumes when it's off.

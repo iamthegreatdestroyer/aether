@@ -59,6 +59,33 @@ export function addLocation(
   return updated;
 }
 
+/**
+ * Pin the device's position as "Home" — a stable-id upsert, always moved to the front so it
+ * is the first card and first hydrated. Coordinates round to 2 decimals (~1 km, same as the
+ * default cities) ON PURPOSE: locationKey feeds the verification ledger, and 4-decimal
+ * precision would let ordinary GPS jitter between re-pins mint a fresh ledger each time.
+ * ~1 km is beyond weather-model resolution anyway.
+ */
+export function setHomeLocation(
+  locations: SavedLocation[],
+  lat: number,
+  lon: number,
+): SavedLocation[] {
+  const existing = locations.find((l) => l.id === 'home');
+  if (!existing && locations.length >= MAX_LOCATIONS) {
+    throw new Error(`Location cap is ${MAX_LOCATIONS} — remove one first.`);
+  }
+  const home: SavedLocation = {
+    id: 'home',
+    name: '📍 Home',
+    lat: +lat.toFixed(2),
+    lon: +lon.toFixed(2),
+  };
+  const updated = [home, ...locations.filter((l) => l.id !== 'home')];
+  save(updated);
+  return updated;
+}
+
 export function removeLocation(locations: SavedLocation[], id: string): SavedLocation[] {
   const updated = locations.filter((l) => l.id !== id);
   save(updated);

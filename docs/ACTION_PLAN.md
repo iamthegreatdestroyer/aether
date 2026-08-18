@@ -843,3 +843,18 @@ applied to spacecraft.
   Tokyo 78° near-overhead tonight → "go look".
 - Drive-by fix: DONKI failures are negative-cached 10 min — a quota 429 used to cost every
   panel open the scheduler's full 21 s backoff before rendering "unavailable".
+
+### 11.1 📍 Home — SHIPPED 2026-08-18. Pin-once, not follow-me, on purpose.
+
+One button, one browser permission prompt, and the device position becomes the first saved
+location (stable id, gold marker, boot-priority hydration). The design call that matters:
+**Home rounds to 2 decimals (~1 km)** where map-click locations keep 4 — locationKey feeds
+the verification ledger, and 4-decimal precision would let ordinary GPS jitter between
+re-pins mint a fresh ledger each time. An actual move (> ~1 km) honestly starts fresh.
+Follow-me was rejected: a location that trails the device would fragment its receipt
+history at every coordinate change. Reverse-geocoding skipped (Open-Meteo's geocoder is
+CC BY-NC — deliberately avoided since P0); the pin is named "📍 Home", which is what it is.
+
+Verified with stubbed geolocation: first pin lands front + hydrates live; re-pin at new
+coords updates the SAME entry (1 home, count stable); denied/unavailable/timeout each get
+an honest alert.
