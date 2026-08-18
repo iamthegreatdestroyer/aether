@@ -29,6 +29,7 @@ import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel
 import { isThisWeird } from './data/climatology';
 import { fetchHonesty } from './data/ensemble';
 import { buildStormDialog, loadStormLedger, renderStorms, showStormOnMap } from './ui/stormPanel';
+import { addWaypoint, debugRoute, initRoutePanel, isRouteMode } from './ui/routePanel';
 import type { StormLedger } from './ui/stormPanel';
 import { fetchOvation, sampleAurora } from './data/space';
 import { balloonTruth } from './data/sondes';
@@ -84,6 +85,11 @@ function syncMarkers(): void {
 }
 
 map.on('click', (e) => {
+  // Route mode captures clicks as waypoints; location-adding resumes when it's off.
+  if (isRouteMode()) {
+    addWaypoint(e.lngLat.lat, e.lngLat.lng);
+    return;
+  }
   const name = window.prompt(
     `Add location at ${e.lngLat.lat.toFixed(2)}, ${e.lngLat.lng.toFixed(2)}?\nName:`,
   );
@@ -386,6 +392,12 @@ document.getElementById('receipts-toggle')!.addEventListener('click', () => {
   void renderReceipts(receiptsDialog, locations).then(() => receiptsDialog.showModal());
 });
 
+initRoutePanel(
+  map,
+  document.getElementById('route-bar')!,
+  document.getElementById('route-toggle') as HTMLButtonElement,
+);
+
 let stormLedger: StormLedger | null = null;
 const stormDialog = buildStormDialog();
 document.getElementById('storms-toggle')!.addEventListener('click', () => {
@@ -453,6 +465,8 @@ if ('serviceWorker' in navigator) {
     );
   },
   storms: () => loadStormLedger(),
+  route: (wps: Array<{ lat: number; lon: number }>, mode = 'car', departH = 0) =>
+    debugRoute(wps, mode as never, departH),
   honesty: (i = 0) => {
     const loc = locations[i];
     return loc ? fetchHonesty(loc) : Promise.resolve(null);

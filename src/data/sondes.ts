@@ -16,6 +16,7 @@
  */
 
 import { fetchJson } from './fetcher';
+import { haversineKm } from './geo';
 import { source } from './sources.mjs';
 import type { SavedLocation } from '../ui/locations';
 
@@ -44,16 +45,6 @@ const SEARCH_RADIUS_M = 300_000;
 const LOOKBACK_S = 43_200; // 12 h — spans the last synoptic launch cycle
 
 const PRESSURE_LEVELS = [925, 850, 700, 500, 400, 300, 250, 200] as const;
-
-function haversineKm(aLat: number, aLon: number, bLat: number, bLon: number): number {
-  const R = 6371;
-  const dLat = ((bLat - aLat) * Math.PI) / 180;
-  const dLon = ((bLon - aLon) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
 
 interface SondeListing {
   serial: string;

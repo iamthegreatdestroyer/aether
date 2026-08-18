@@ -584,3 +584,25 @@ First live render read like a meteorology lecture: NYC 53→75→80% as the patt
 collapsing to 38% at day 4; contested-rain Tuesday flagged. Third Open-Meteo host in the
 contract (forecast/archive/ensemble), attribution dedup already handled. Cache: 3 h TTL via
 a prefixed STORE_LATEST key — no schema change, no DB version dance.
+
+### 9.7 The trajectory sampler — SHIPPED 2026-08-18. All four tour ideas are live.
+
+§9.3-D, built: `f(position, arrival_time)`. Route mode turns map clicks into waypoints;
+pick a pace (car/bike/hike/boat) and a departure (now/+1/+3/+6 h); samples are spaced by
+TRAVEL TIME (one per ~30 min underway, 3–12 points) and the entire route costs **one**
+Open-Meteo request — the multi-location comma-list form was live-verified to return an
+ordered array before the code was written. UTC internally so cross-timezone routes stay on
+one clock; local times rendered per point. Map colors each sample by precip probability;
+the bar calls out the wettest stretch, or says "dry run".
+
+First verification run answered like a road trip: NYC→Boston by car departing +3 h —
+overcast leaving the city, clearing through Connecticut, **fog on the Massachusetts approach
+at 03:30 AM** — pre-dawn New England in August, captured by arrival-time sampling where a
+"now" map would have shown none of it.
+
+Smoke Story remains explicitly deferred: it is this sampler pointed at a fire/PM data lane
+that does not exist yet (FIRMS + HRRR-Smoke are their own Tier B work).
+
+**The Windy-tour scoreboard: all four ideas shipped within ~30 h of the tour** — "Is this
+weird?" (9.4), storm ledger (9.5), honesty labels (9.6), trajectory sampler (9.7). The
+classic roadmap resumes at P5 (divergence layer) and P6 (Tauri desktop).
