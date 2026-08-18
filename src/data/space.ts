@@ -13,7 +13,7 @@
  * required by the contract note to label it as an estimate, and does.
  */
 
-import { fetchJson } from './fetcher';
+import { fetchJson, hasNativeTransport } from './fetcher';
 import { source } from './sources.mjs';
 
 export interface KpReading {
@@ -31,14 +31,51 @@ export function kpSeverity(kp: number): { level: string; cls: string } {
   return { level: 'quiet', cls: 'kp-quiet' };
 }
 
-/** Last 3 days of 3-hourly Kp (24 readings). */
-export async function fetchKpSeries(): Promise<KpReading[]> {
+export interface KpSeries {
+  readings: KpReading[];
+  /** Which producer answered — drives the honesty label in the panel. */
+  sourceLabel: string;
+  official: boolean;
+}
+
+/**
+ * Last 3 days of 3-hourly Kp. Under the desktop shell the native transport reaches GFZ
+ * Potsdam — the OFFICIAL Kp producer, whose endpoint sends no CORS header — and the panel's
+ * long-standing "NOAA estimate" caveat resolves itself. The PWA keeps the estimate, labelled
+ * as such; failure of either path falls through honestly.
+ */
+export async function fetchKpSeries(): Promise<KpSeries> {
+  if (hasNativeTransport()) {
+    try {
+      const g = source('gfz-kp');
+      const end = new Date();
+      const start = new Date(end.getTime() - 3 * 24 * 3600 * 1000);
+      const u = new URL(g.baseUrl ?? 'https://kp.gfz.de/app/json/');
+      u.searchParams.set('start', start.toISOString().slice(0, 19) + 'Z');
+      u.searchParams.set('end', end.toISOString().slice(0, 19) + 'Z');
+      u.searchParams.set('index', 'Kp');
+      const d = await fetchJson<{ datetime: string[]; Kp: number[] }>('gfz-kp', u.toString());
+      const readings = d.datetime
+        .map((t, i) => ({ time: t, kp: d.Kp[i]! }))
+        .filter((r) => r.kp !== null)
+        .slice(-24);
+      if (readings.length > 0) {
+        return { readings, sourceLabel: 'GFZ Potsdam — official Kp (CC BY 4.0)', official: true };
+      }
+    } catch {
+      /* fall through to the estimate */
+    }
+  }
   const s = source('swpc-kp-estimate');
   const rows = await fetchJson<Array<{ time_tag: string; Kp: number }>>(
     'swpc-kp-estimate',
     s.baseUrl!,
   );
-  return rows.slice(-24).map((r) => ({ time: r.time_tag, kp: r.Kp }));
+  return {
+    readings: rows.slice(-24).map((r) => ({ time: r.time_tag, kp: r.Kp })),
+    sourceLabel: 'NOAA estimate · official Kp: GFZ Potsdam',
+    official: false,
+  };
 }
 
 export interface SolarWindNow {

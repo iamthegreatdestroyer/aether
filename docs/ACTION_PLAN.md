@@ -625,3 +625,27 @@ colorizes |diff| transparent-below-0.5 °C → amber → magenta, ships ~40 KB w
 Client renders as a MapLibre image source with a lead selector and the honest legend: "not
 an error map — a humility map." First build: 5.4% of the globe >2 °C at +24 h rising to
 17.7% at +120 h, max divergence 22.5 °C. The 2025–26-window feature exists in production.
+
+### 9.9 P6 — the desktop ship (2026-08-18)
+
+The last classic-roadmap phase. G0.6 proved the renderer inside WebView2 months of work ago
+(in project time: two days); P6 wraps the real app and cashes the native cheque:
+
+- **`src-tauri/` at the app root** — thin shell, same TypeScript bundle as the PWA. The G0.6
+  spike shell stays quarantined in `spike/`.
+- **`tauri-plugin-http`** — Rust-side fetch, immune to webview CORS, scoped by capability to
+  exactly the two `A-native` hosts (`kp.gfz.de`, `aviationweather.gov`). The fetcher gained a
+  transport shim: under Tauri every scheduled fetch can use the native path; in the PWA the
+  shim stays null and nothing changes.
+- **The first cashed cheque: official Kp.** Since P4 the Kp strip carried the required
+  caveat "NOAA estimate · official Kp: GFZ Potsdam" because GFZ sends no CORS header. Under
+  the desktop shell `fetchKpSeries()` reaches GFZ directly and the label becomes
+  "GFZ Potsdam — official Kp (CC BY 4.0) ✓". Same panel, truer data, honest label either
+  way. (GFZ JSON shape live-verified first: `{datetime[], Kp[], meta:{license:'CC BY 4.0'}}`.)
+- **METAR truth for the ledger** remains the documented second cheque — needs station
+  resolution work, explicitly deferred.
+- **Self-check over stdout-that-doesn't-exist**: on boot under Tauri the app fetches Kp via
+  the native path and writes the result to `aether-native-check.jsonl` through a `report`
+  command — the G0.6 files-are-the-truth-channel pattern, reused.
+- **`desktop.yml`**: MSI built on workflow_dispatch or version tags, artifact-uploaded;
+  deliberately NOT part of the 6-hourly data deploys.

@@ -44,9 +44,35 @@ import { WindLayer } from './particles/windLayer';
 import { RadarLayer } from './layers/radar';
 import { SatelliteLayer } from './layers/satellite';
 import { DivergenceLayer } from './layers/divergence';
-import { blockedSources, setBlockedSources } from './data/fetcher';
+import { blockedSources, initNativeTransport, hasNativeTransport, setBlockedSources } from './data/fetcher';
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+
+// P6: under the desktop shell, arm the Rust-side transport before anything fetches, then
+// prove the native paths by writing a self-check file the outside world can read (the G0.6
+// lesson: a GUI process's stdout is a dead end — files are the truth channel).
+const nativeReady = initNativeTransport().then(async (native) => {
+  if (!native) return false;
+  try {
+    const [{ invoke }, { fetchKpSeries }] = await Promise.all([
+      import('@tauri-apps/api/core'),
+      import('./data/space'),
+    ]);
+    const kp = await fetchKpSeries();
+    await invoke('report', {
+      payload: JSON.stringify({
+        at: new Date().toISOString(),
+        nativeTransport: true,
+        kpSource: kp.sourceLabel,
+        kpOfficial: kp.official,
+        kpLatest: kp.readings[kp.readings.length - 1] ?? null,
+      }),
+    });
+  } catch (err) {
+    console.warn('[native-check]', err);
+  }
+  return true;
+});
 
 let locations: SavedLocation[] = loadLocations();
 const cardStates = new Map<string, CardState>();
@@ -517,6 +543,7 @@ if ('serviceWorker' in navigator) {
   },
   storms: () => loadStormLedger(),
   divergence: () => divergence.state,
+  native: () => nativeReady.then(() => hasNativeTransport()),
   divergenceOn: () => divergence.enable().then(() => divergence.state),
   cone: (i = 0) => {
     const loc = locations[i];

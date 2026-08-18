@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Aether main window: core APIs plus scoped native HTTP for the A-native sources.","local":true,"windows":["main"],"permissions":["core:default",{"identifier":"http:default","allow":[{"url":"https://kp.gfz.de/*"},{"url":"https://aviationweather.gov/*"}]}]}}

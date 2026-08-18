@@ -77,6 +77,29 @@ export function setBlockedSources(ids: string[]): void {
   localStorage.setItem(BLOCK_KEY, JSON.stringify(ids));
 }
 
+/**
+ * Native transport (P6). Under Tauri, tauri-plugin-http performs requests from the RUST
+ * side, immune to webview CORS — which is precisely what the contract's `A-native` tier has
+ * been waiting for since day one (GFZ official Kp; aviationweather METARs next). In the
+ * plain PWA this stays null and A-native sources keep throwing their honest error.
+ */
+let nativeFetch: typeof fetch | null = null;
+
+export async function initNativeTransport(): Promise<boolean> {
+  if (!('__TAURI_INTERNALS__' in window)) return false;
+  try {
+    const m = await import('@tauri-apps/plugin-http');
+    nativeFetch = m.fetch as typeof fetch;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function hasNativeTransport(): boolean {
+  return nativeFetch !== null;
+}
+
 export async function fetchJson<T>(sourceId: string, url: string): Promise<T> {
   if (blockedSources().has(sourceId)) {
     throw new FetchError(url, null, `${sourceId} blocked (dev outage simulation)`);
@@ -90,9 +113,10 @@ export async function fetchJson<T>(sourceId: string, url: string): Promise<T> {
     await reserveSlot(sourceId, MIN_INTERVAL_MS[sourceId] ?? 1_000);
 
     let lastError: FetchError | null = null;
+    const doFetch = nativeFetch ?? fetch;
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       try {
-        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        const res = await doFetch(url, { headers: { Accept: 'application/json' } });
         if (res.ok) return (await res.json()) as T;
         lastError = new FetchError(url, res.status, `${sourceId} answered ${res.status}`);
         // Only throttling and server errors are worth retrying; a 4xx is our bug.

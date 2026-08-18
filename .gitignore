@@ -34,3 +34,6 @@ spike/src-tauri/bench-results.jsonl
 
 __pycache__/
 *.pyc
+
+# Native self-check output (written beside the exe at runtime)
+aether-native-check.jsonl

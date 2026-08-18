@@ -1,0 +1,37 @@
+name: Desktop build
+
+# P6: the Tauri desktop artifact, built on demand rather than per-push — a full Rust release
+# compile (~5 min) has no business inside the 6-hourly data deploys. Dispatch it, or tag a
+# release (v*) to get an MSI attached as a workflow artifact.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aether-windows-msi
+          path: src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error

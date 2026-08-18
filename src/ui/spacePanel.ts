@@ -68,12 +68,13 @@ export async function renderSpace(
       <span class="sw-meta">DSCOVR/ACE via SWPC · ${w.time.slice(11, 16)}Z</span>`;
   };
 
-  const [kp, wind, ovationMeta] = await Promise.all([
-    fetchKpSeries().catch(() => []),
+  const [kpSeries, wind, ovationMeta] = await Promise.all([
+    fetchKpSeries().catch(() => null),
     fetchSolarWindNow().catch(() => null),
     fetchOvation().catch(() => null),
   ]);
 
+  const kp = kpSeries?.readings ?? [];
   const latest = kp[kp.length - 1];
   const sev = latest ? kpSeverity(latest.kp) : null;
   const kpBars = kp
@@ -129,7 +130,7 @@ export async function renderSpace(
     <h3>Solar wind now ${sev ? `· <span class="${sev.cls}">Kp ${latest!.kp.toFixed(1)} — ${sev.level}</span>` : ''}</h3>
     <div id="sw-now" class="sw-row">${wind ? windHtml(wind) : 'solar wind unavailable'}</div>
 
-    <h3>Kp — last 3 days <span class="kp-note">NOAA estimate · official Kp: GFZ Potsdam</span></h3>
+    <h3>Kp — last 3 days <span class="kp-note">${kpSeries?.sourceLabel ?? ''}${kpSeries?.official ? ' ✓' : ''}</span></h3>
     <div class="kp-strip">${kpBars}</div>
 
     <h3>Aurora × cloud ${ovationMeta ? `<span class="kp-note">OVATION forecast ${ovationMeta.forecastTime.slice(11, 16)}Z</span>` : ''}</h3>
