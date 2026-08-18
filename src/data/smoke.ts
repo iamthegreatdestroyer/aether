@@ -63,7 +63,7 @@ export function setFirmsKey(key: string | null): void {
 /** Three polar orbiters = three chances per day a pass caught the fire recently. */
 const LIVE_SATS = ['VIIRS_SNPP_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'];
 
-interface LiveCluster extends FireCluster {
+export interface LiveCluster extends FireCluster {
   /** Newest detection in the cluster, epoch ms. */
   acqMs: number;
 }
@@ -94,15 +94,21 @@ function parseAreaCsv(text: string): Array<{ lat: number; lon: number; frp: numb
   return out;
 }
 
-/** Live detections around a location, clustered to ~5 km bins. Null without a key. */
-async function fetchLiveFires(
-  loc: SavedLocation,
+/**
+ * Live detections in a bbox, clustered to ~5 km bins. Null without a key. Shared by the
+ * per-location assessment (±4° box) and the map layer's viewport queries.
+ */
+export async function fetchLiveFiresBbox(
+  west: number,
+  south: number,
+  east: number,
+  north: number,
 ): Promise<{ clusters: LiveCluster[]; newestMs: number } | null> {
   const key = getFirmsKey();
   if (!key) return null;
   const s = source('firms-api');
-  const d = 4; // ±4° comfortably covers the 400 km assessment radius
-  const area = `${(loc.lon - d).toFixed(1)},${(loc.lat - d).toFixed(1)},${(loc.lon + d).toFixed(1)},${(loc.lat + d).toFixed(1)}`;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  const area = `${clamp(west, -180, 180).toFixed(1)},${clamp(south, -90, 90).toFixed(1)},${clamp(east, -180, 180).toFixed(1)},${clamp(north, -90, 90).toFixed(1)}`;
   const texts = await Promise.all(
     LIVE_SATS.map((sat) =>
       fetchText('firms-api', `${s.baseUrl}/${key}/${sat}/${area}/1`).catch(() => ''),
@@ -132,6 +138,14 @@ async function fetchLiveFires(
     clusters.push({ lat: b.lat, lon: b.lon, n: b.n, frp: Math.round(b.frp * 10) / 10, acqMs: b.acqMs });
   }
   return { clusters, newestMs };
+}
+
+/** The assessment's shape: a ±4° box around the location covers the 400 km radius. */
+function fetchLiveFires(
+  loc: SavedLocation,
+): Promise<{ clusters: LiveCluster[]; newestMs: number } | null> {
+  const d = 4;
+  return fetchLiveFiresBbox(loc.lon - d, loc.lat - d, loc.lon + d, loc.lat + d);
 }
 
 let fireCache: FireData | null = null;

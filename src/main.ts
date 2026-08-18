@@ -624,6 +624,8 @@ if ('serviceWorker' in navigator) {
   }),
   /** P1 exit check: picker vs Open-Meteo GFS at the texture's valid time. */
   sampleWind: (lng: number, lat: number) => windLayer.sampleWind(lng, lat),
+  fires: () => firesLayer.state,
+  flyTo: (lng: number, lat: number, zoom: number) => map.jumpTo({ center: [lng, lat], zoom }),
   weird: (i = 0) => {
     const loc = locations[i];
     const c = loc && cardStates.get(loc.id);

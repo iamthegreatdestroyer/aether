@@ -789,3 +789,19 @@ minutes old, queried at panel-open" — and the architecture assumption flipped 
   after overpass, hours fresher than advertised NRT. NYC's picture changed from 2 cron
   clusters to 9 live ones including a toward-verdict — better data changing the verdict is
   the feature working, not a regression. Keyless fallback + zero-error console verified.
+
+### 10.8 Live fire dots — SHIPPED 2026-08-18. The map follows your eyes.
+
+The 🔥 layer now runs two planes on one toggle: viewport-scoped LIVE queries (white-stroked
+dots, same ~20-min-after-overpass lane as the panel) when zoomed below ~continental span
+with a MAP_KEY, and the global cron snapshot at world scale or keyless. Live REPLACES the
+snapshot for the covered view — two ages of dot at once would lie.
+
+Quota discipline is structural: queries fire on moveend (700 ms debounce) against a 25%-
+padded box, so pans inside it requery nothing (measured: 0 requests on a small pan) and an
+unchanged view holds for 2 min. A world-span live query would be a multi-MB CSV and a quota
+bonfire — the span threshold IS the honesty rule.
+
+Verified live: world → cron; central US z5 → live, 132 clusters, newest 08:10Z (~25 min);
+zoom-out → cron again; Congo Basin z5 → live, 47 clusters, newest 01:15Z (night passes);
+zero HTTP errors across the tour. `__aether.fires()` + `flyTo()` joined the debug hook.
