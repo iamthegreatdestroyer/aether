@@ -134,7 +134,8 @@ export async function fetchRoute(callsign: string): Promise<FlightRoute | null> 
   const key = callsign.trim().toUpperCase();
   if (!key) return null;
   if (routeCache.has(key)) return routeCache.get(key) ?? null;
-  if (!hasNativeTransport()) return null;
+  // No native gate here on purpose: the probe corrected adsbdb to Tier A, so routes are
+  // browser-reachable even though the POSITIONS that lead you to a callsign are not.
 
   try {
     const d = await fetchJson<{
@@ -163,6 +164,52 @@ export async function fetchRoute(callsign: string): Promise<FlightRoute | null> 
   } catch {
     // A callsign the database has never seen is a normal answer; don't retry it all session.
     routeCache.set(key, null);
+    return null;
+  }
+}
+
+export interface AirframePhoto {
+  thumbUrl: string;
+  pageUrl: string;
+  photographer: string;
+}
+
+const photoCache = new Map<string, AirframePhoto | null>();
+
+/**
+ * A photo of the specific airframe overhead, by registration. Planespotters' licence is
+ * credit: the photographer's name and a link back are REQUIRED, so both travel with the
+ * photo rather than being dropped for tidiness. Cached per registration for the session and
+ * fetched only when someone clicks a specific aircraft — never for a whole screen of them.
+ */
+export async function fetchAirframePhoto(reg: string): Promise<AirframePhoto | null> {
+  const key = reg.trim().toUpperCase();
+  if (!key) return null;
+  if (photoCache.has(key)) return photoCache.get(key) ?? null;
+  try {
+    const d = await fetchJson<{
+      photos?: Array<{
+        thumbnail_large?: { src?: string };
+        thumbnail?: { src?: string };
+        link?: string;
+        photographer?: string;
+      }>;
+    }>('planespotters', `${source('planespotters').baseUrl}/${encodeURIComponent(key)}`);
+    const p = d.photos?.[0];
+    const src = p?.thumbnail_large?.src ?? p?.thumbnail?.src;
+    if (!p || !src) {
+      photoCache.set(key, null);
+      return null;
+    }
+    const photo: AirframePhoto = {
+      thumbUrl: src,
+      pageUrl: p.link ?? '',
+      photographer: p.photographer ?? 'unknown',
+    };
+    photoCache.set(key, photo);
+    return photo;
+  } catch {
+    photoCache.set(key, null); // an unphotographed airframe is normal; never retry in a loop
     return null;
   }
 }

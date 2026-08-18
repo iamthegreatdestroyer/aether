@@ -17,7 +17,7 @@ import { Popup } from 'maplibre-gl';
 import type { Map as MapLibreMap, GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection, Point } from 'geojson';
 import { registerLayer } from './registry';
-import { altLabel, fetchAircraft, fetchRoute, isFlightAvailable } from '../data/flight';
+import { altLabel, fetchAircraft, fetchAirframePhoto, fetchRoute, isFlightAvailable } from '../data/flight';
 import { haversineKm } from '../data/geo';
 
 const ID = 'aircraft';
@@ -248,6 +248,22 @@ export class AircraftLayer {
       .addTo(this.map);
 
     const popup = this.popup;
+
+    // A photo of THIS airframe, if anyone has ever shot it. Planespotters requires the
+    // photographer credit and a link back, so both ship with the image.
+    const reg = String(p['reg'] || '');
+    if (reg) {
+      void fetchAirframePhoto(reg).then((photo) => {
+        if (popup !== this.popup || !photo) return;
+        const img = document.createElement('div');
+        img.className = 'plane-photo';
+        img.innerHTML =
+          `<img src="${photo.thumbUrl}" alt="${reg}" loading="lazy">` +
+          `<a href="${photo.pageUrl}" target="_blank" rel="noopener">📷 ${photo.photographer} · Planespotters</a>`;
+        popup.getElement()?.querySelector('.maplibregl-popup-content')?.prepend(img);
+      });
+    }
+
     const callsign = String(p['flight'] || '');
     if (!callsign) {
       popup.setHTML(base);

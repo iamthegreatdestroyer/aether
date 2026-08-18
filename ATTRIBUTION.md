@@ -7,7 +7,7 @@ Every string below must be displayed in the app on the **Data Sources** screen.
 These obligations are **not** waived by the personal-use scope — CC BY attaches to display
 of the data itself, regardless of whether the software is ever distributed.
 
-20 sources require attribution; 15 do not.
+21 sources require attribution; 15 do not.
 
 ## Required
 
@@ -31,6 +31,7 @@ of the data itself, regardless of whether the software is ever distributed.
 | ADSB.lol (community ADS-B aggregator) | **Aircraft data © ADSB.lol contributors, ODbL 1.0** | ODbL 1.0 — attribution AND licence notice required |
 | adsbdb (callsign → route database) | **Route data from adsbdb.com** | Free community database; attribution requested |
 | Overpass API (OpenStreetMap) | **Trail data © OpenStreetMap contributors, ODbL 1.0** | ODbL 1.0 — attribution AND licence notice required |
+| Planespotters.net photo API | **Aircraft photos via Planespotters.net — each photo credits its photographer** | Free for non-commercial use; photographer credit and link REQUIRED |
 | OpenFreeMap | **© OpenStreetMap contributors** | ODbL (OpenStreetMap data) |
 | ECMWF Open Data (IFS + AIFS) | **This service is based on data and products of ECMWF** | CC BY 4.0 since 2025-10-01 |
 

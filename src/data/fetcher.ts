@@ -14,6 +14,8 @@
  *     is proof these limits are enforced and reachable, not theoretical
  */
 
+import { source } from './sources.mjs';
+
 const MIN_INTERVAL_MS: Record<string, number> = {
   'open-meteo': 1_000,
   // Index JSON only — the tiles themselves are loaded by MapLibre, not through here.
@@ -31,6 +33,7 @@ const MIN_INTERVAL_MS: Record<string, number> = {
   'nws-alerts': 1_000,
   overpass: 3_000, // shared volunteer instance — be a good guest
   'usgs-3dep': 1_000,
+  planespotters: 1_000, // one lookup per click, cached per registration
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];
@@ -137,7 +140,19 @@ async function fetchBody<T>(
     await reserveSlot(sourceId, MIN_INTERVAL_MS[sourceId] ?? 1_000);
 
     let lastError: FetchError | null = null;
-    const doFetch = nativeFetch ?? fetch;
+    // Use the MINIMUM mechanism that works. The native transport exists for sources the
+    // browser is refused by (tier 'A-native'); routing CORS-open sources through Rust as
+    // well gains nothing and costs something real — it was the mechanism behind the P6
+    // capability bug, and it changes the User-Agent, which planespotters.net answers 403 to
+    // (found 2026-08-18). Browser fetch for anything the browser can already reach.
+    const tier = (() => {
+      try {
+        return source(sourceId).tier;
+      } catch {
+        return null; // not a contract source (same-origin artifact) — browser fetch is right
+      }
+    })();
+    const doFetch = tier === 'A-native' && nativeFetch ? nativeFetch : fetch;
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       try {
         const res = await doFetch(url, { headers: { Accept: 'application/json' } });

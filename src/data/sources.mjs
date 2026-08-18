@@ -697,6 +697,29 @@ export const SOURCES = [
   },
 
   {
+    id: 'planespotters',
+    name: 'Planespotters.net photo API',
+    role: 'A photo of the ACTUAL airframe you clicked — the signature FR24 touch',
+    baseUrl: 'https://api.planespotters.net/pub/photos/reg',
+    probeUrl: 'https://api.planespotters.net/pub/photos/reg/N8885Q',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 20,
+    mustNotContain: '<html',
+    license: 'Free for non-commercial use; photographer credit and link REQUIRED',
+    attribution: 'Aircraft photos via Planespotters.net — each photo credits its photographer',
+    rateLimit: 'one lookup per aircraft CLICK, cached per registration for the session',
+    notes:
+      'MEASURED 2026-08-18: CORS *, keyless — but 403s a default curl User-Agent, which is ' +
+      'why it must go through BROWSER fetch rather than the Rust transport (that finding ' +
+      'prompted the fetcher change: native is now used only for tier A-native). Each photo ' +
+      'carries its photographer and a link, and both are shown — the licence is credit, and ' +
+      'a credit nobody displays is a licence nobody honoured.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
     id: 'celestrak',
     name: 'CelesTrak GP element sets',
     role: 'Station passes — ISS/Tiangong visible-pass prediction in the Space panel',

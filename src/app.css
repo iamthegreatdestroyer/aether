@@ -598,3 +598,9 @@ html, body {
   }
   #cards.is-docked .card { flex: 0 0 auto; min-width: 190px; }
 }
+
+/* ---- airframe photo in the aircraft popup (Planespotters credit is part of the licence) ---- */
+.plane-photo { margin: -2px 0 6px; }
+.plane-photo img { width: 100%; border-radius: 6px; display: block; }
+.plane-photo a { font-size: 10px; color: var(--muted); text-decoration: none; display: block; margin-top: 3px; }
+.plane-photo a:hover { color: var(--accent); }

@@ -1182,3 +1182,32 @@ already there (the whole surface is a drag region).
 Caught while writing it: the new clamp rules were inserted ABOVE the originals in the same
 stylesheet, so the fixed px values below silently won. Folded into the original declarations
 instead — the classic cascade bug, found by reading the output rather than the intent.
+
+## 14. The OSINT board — what the owner's resource list actually yielded (2026-08-18)
+
+The owner shared an OSINT directory (flight trackers, maritime trackers, weather). Probed
+rather than assumed. Most entries were the commercial incumbents we already arbitraged; three
+findings were real:
+
+- **ADS-B Exchange answers `402 Payment Required`.** The "unfiltered" aggregator went fully
+  paid — which retroactively confirms adsb.lol was the correct pick, not just a convenient one.
+- **Planespotters.net: keyless, CORS-open, one photo per registration.** Now in the aircraft
+  popup — click a plane and see a picture of *that airframe*, the signature FR24 touch. Its
+  licence is credit, so the photographer's name and a link back travel with every image: a
+  credit nobody displays is a licence nobody honoured.
+- **No open live-AIS lane exists for Florida.** Digitraffic is genuinely open and CORS-* but
+  covers Finnish waters; the Danish feed is regional too; aisstream.io is free but requires
+  an ACCOUNT, which is the owner's to create, not mine. Recorded as the FIRMS pattern: if the
+  owner makes a key, the lane is a small module away. MarineTraffic's moat, unlike the
+  others, is a genuine receiver network — the honest verdict, not a workaround.
+
+### 14.1 The fix hiding inside the photo API
+
+Planespotters 403s a default User-Agent, and under the desktop shell EVERY fetch was going
+through the Rust transport — which sets its own UA. That surfaced a design flaw worth more
+than the feature: **the native transport was being used for sources that never needed it.**
+
+`fetchJson` now selects transport by TIER: Rust only for `A-native` (the sources browsers are
+refused by), browser fetch for everything else. This is the minimum-mechanism principle, and
+it would have prevented the P6 capability bug outright — that bug existed precisely because a
+mechanism meant for two hosts was silently applied to twenty-two.

@@ -37,6 +37,9 @@
           "url": "https://api.open-meteo.com/*"
         },
         {
+          "url": "https://api.planespotters.net/*"
+        },
+        {
           "url": "https://api.rainviewer.com/*"
         },
         {
