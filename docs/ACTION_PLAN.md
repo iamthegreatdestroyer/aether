@@ -411,3 +411,62 @@ surface, architecture, conventions. No weather data was extracted; the research'
 rule (never scrape Windy/Ventusky model data, which is licensed to them) is unaffected and
 still holds. One introspection call was blocked by the browser tooling for containing
 token-like strings; it was not worked around.
+
+### 9.2 The wide tour — ideas that came from looking, not from hunting (2026-08-17)
+
+Explored hurricane tracker, 3D, EFI, thermals, drought, dust/CAMS, airgram routes. The three
+findings below are NOT "features to copy" — they are reframings that change what Aether could
+be, and none were on any shortlist before the tour.
+
+#### A. EFI asks a different question than every other layer — and we can ask it better
+
+ECMWF's Extreme Forecast Index legend reads **"unusually calm ←→ extreme wind"**. It does not
+show the forecast VALUE; it shows *how unusual the forecast is against that location's own
+climatology*. Every other layer in every weather app answers **"what will it be?"** EFI
+answers **"should you care?"** — 30 km/h is unremarkable in Patagonia and a story in Singapore.
+
+**The connection: Aether can compute a PERSONAL version, and is uniquely positioned to.**
+Windy uses ECMWF's model climatology. We have two better sources already in hand:
+- **Open-Meteo's ERA5 archive back to 1940** — already in the endpoint contract, unused. A
+  percentile for today's value against 80 years at that exact point is one API call.
+- **The ledger itself.** We have been recording observations per location since P0. Over time
+  that becomes a *personal* climatology — not "unusual for this grid cell" but "unusual for
+  the record THIS app has kept HERE."
+
+Feature shape: **"Is this weird?"** — a per-location normality percentile on the forecast
+card. Cheap (ERA5 is one keyless call), immediately meaningful on day one, and it deepens
+with the ledger exactly like *Who Was Right?* does. It is the same compounding-trust bet
+applied to a second axis.
+
+#### B. Hurricane tracks are the perfect ledger subject, and the diff is sitting right there
+
+The tracker draws the **observed past track** (solid, with dated waypoints) and the
+**forecast track + cone** (dashed) on the same canvas — truth and prediction, same pixels —
+and never diffs them. Three model chips (NHC-CP / UKM / ECMWF) can only be viewed ONE AT A
+TIME, and they disagree materially: for the same Saturday, ECMWF said 12 bft / category 2
+while UKM said 10 bft / no category, with visibly different cone geometry.
+
+NHC reissues forecasts every 6 h and publishes observed positions. So **"which model has been
+closest for THIS storm so far"** is computable *while the storm is still approaching*. That is
+*Who Was Right?* applied to the highest-stakes forecast that exists, at the moment the answer
+matters most — and nobody ships it. ForecastWatch verifies post-hoc and B2B; Windy shows
+tracks without scores.
+
+#### C. `Thermals` proves the derived-index category ships
+
+Thermals is not a raw model variable — it is a computed "is today good for paragliding" index.
+Its existence validates proposal concept #10 (Linked Lifestyle Indices) as a real product
+category rather than a nice-to-have.
+
+#### Smaller observations worth keeping
+
+- **The time axis changes granularity with the data.** Normal layers = hourly scrubber; EFI =
+  daily tabs with Temperature/Wind/Rain sub-selectors. Our planned unified time axis should
+  adapt its resolution per layer rather than forcing one grid — radar wants 10-minute frames,
+  EFI wants days.
+- **3D is the paywall.** Their chosen premium hook is spatial, not data — everything factual
+  stays free. Useful signal about what users actually pay for.
+- **Composition layers run on a separate model stack** (CAMS 40 km; the dust view offered
+  "13 more" models). Aerosol/chemistry is a distinct ingest, not a variable of the NWP models.
+- **Drought comes from CzechGlobe** with a research-partner credit — even Windy outsources
+  the long-timescale layers to institutes rather than deriving them.
