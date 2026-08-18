@@ -470,3 +470,63 @@ category rather than a nice-to-have.
   "13 more" models). Aerosol/chemistry is a distinct ingest, not a variable of the NWP models.
 - **Drought comes from CzechGlobe** with a research-partner credit — even Windy outsources
   the long-timescale layers to institutes rather than deriving them.
+
+### 9.3 The rest of the tour — route forecasts, honesty labels, and the platform play
+
+#### D. "Route forecast" is a different query shape entirely
+
+The distance tool is not a ruler. Its header reads **"Display route forecast for:
+Car/hike | Boat | VFR | IFR | Airgram"**, and it exports GPX. That is weather sampled along a
+*path*, evaluated **at the time you will actually be at each point** — a trajectory query,
+not a point query. Leaving at 15:00, the midpoint should be scored at 16:30, not now.
+
+Every layer Aether has is `f(position, forecast_hour)`. This is `f(position, arrival_time)`.
+The machinery is a polyline plus a departure time, and it is the *same shape* as proposal
+concept #7 **Smoke Story** ("fires → trajectory → local PM arrival timeline"). Build the
+trajectory sampler once and both features fall out of it. Also worth noting: the profiles
+(boat vs VFR vs IFR) are just different variable sets over the same query — aviation cares
+about ceiling/visibility/icing, boats about waves/wind.
+
+#### E. Two honesty patterns worth stealing outright
+
+1. **Per-day "predictability" percentage** on the forecast header — 70% today, sliding to 50%
+   by day five. An ensemble-spread signal, named in plain language, shipped.
+2. **"Convective rain (difficult to forecast)"** printed inline on the meteogram. They label
+   *which part of the forecast is inherently less trustworthy*, at the point of display.
+
+Both are exactly Aether's thesis coming from the incumbent: forecast uncertainty stated up
+front rather than hidden behind a single confident number. Our ledger goes further (we can
+say *how wrong this model has actually been here*), but these two are cheap and immediate.
+
+#### F. The strategic finding: Windy is not a product, it is a platform
+
+The plugin gallery is third parties solving problems Windy would never build:
+- **CMA typhoon tracker** — a national met agency shipping its own GB/T wind-scale tracker
+- **Prevención de incendios forestales · Navarra** — a Spanish region's fire-risk overlay
+- **FieldGuard — HSE Field Safety** — occupational heat-stress (WBGT) for outdoor crews
+- **Pressure Diff Charts Alps** — cross-section diagrams for alpine forecasting
+
+Plus "Load plugin directly from URL" for side-loading. **The moat is not the 68 layers; it is
+that domain experts build their livelihoods on top.** That is unassailable by feature parity
+and irrelevant to a personal app — but the underlying insight transfers: *weather is
+infrastructure for domain-specific decisions.* Aether's Linked Lifestyle Indices are the same
+idea at personal scale, and the `WeatherSource`/layer-registry boundaries we already built are
+the same architecture at n=1.
+
+#### G. Constraints they hit that we also hit
+
+**"Live alerts are supported only on native Windy.com app."** Their web app cannot push
+either — exactly the finding in our own infrastructure research (something must wake and send;
+a PWA alone cannot). Windy's answer was to ship a native app. Ours is the Tier B cron → FCM
+topic, and P6's Tauri build. Good confirmation the constraint is real and not our mistake.
+
+#### H. Small design decisions worth a moment
+
+- **Animation intensity is a user setting** (Normal / High / Intensive), where Aether
+  auto-adapts down-only. Theirs respects preference; ours protects the battery. The right
+  answer is probably both — auto by default, user override available.
+- **Every quantity has its own unit toggle** (wind in kt/bft/m/s/km/h/mph, radar in dBZ or
+  mm/h, satellite in K/°C/°F). Unit handling as a first-class system, not a global metric flag.
+- **High-resolution meteogram is Premium**; the standard one is free. Together with 3D being
+  the paywall, the pattern is consistent: *resolution and spatial polish are paid; the
+  underlying facts are free.*
