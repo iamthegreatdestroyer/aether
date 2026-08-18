@@ -924,3 +924,17 @@ died and the service worker — network-first, cache-fallback — served the pre
 so the page ran stale code while reporting confidently. Third time SW staleness has produced
 a false measurement in this project (P4, P6, here). **When a measurement disagrees with an
 edit you just made, verify the server is alive before believing either.**
+
+### 11.6 Probe etiquette — we earned a 503 from CelesTrak (2026-08-18)
+
+The deploy that shipped §11.5 failed on `celestrak` timing out twice. Checked directly:
+CelesTrak was answering **503**. Cause is ours, not theirs — its contract entry has said
+since day one *"HARD 2-hour polling floor; violating gets you blocked"*, and today's dozen
+pushes each ran a probe against it. The APP was always fine (TLEs cache 6 h); the PROBE was
+the offender, which is a pointed lesson: the compliance machinery itself needs compliance.
+
+Fix, opt-IN rather than opt-out so a future rate-limited source is protected by default:
+`probePolitely: true` in the contract keeps a source out of push-triggered probes; only the
+daily scheduled run (and manual dispatch) passes `--include-polite`. The skip is always
+PRINTED — "Skipping 1 rate-limit-sensitive source(s) — celestrak" — because a silent cap
+would read as "everything checked" when it wasn't (the plan's own no-silent-caps rule).

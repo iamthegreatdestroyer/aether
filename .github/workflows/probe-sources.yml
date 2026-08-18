@@ -33,7 +33,7 @@ jobs:
       # No install step: the probe deliberately has zero dependencies and imports the
       # contract directly. A contract that needs a toolchain to verify stops being verified.
       - name: Probe every source in the contract
-        run: node scripts/probe-sources.mjs
+        run: node scripts/probe-sources.mjs ${{ github.event_name == 'push' && '' || '--include-polite' }}
 
       - name: Verify ATTRIBUTION.md matches the contract
         run: node scripts/gen-attribution.mjs --check

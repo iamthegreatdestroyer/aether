@@ -532,12 +532,16 @@ export const SOURCES = [
     license: 'Free; no formal attribution',
     attribution: null,
     rateLimit: 'HARD 2-hour polling floor; no bulk scraping — app caches 6 h',
+    probePolitely: true,
     notes:
       'Cache for >= 2 h. Violating the polling floor gets you blocked. CONSUMED as of ' +
       '2026-08-18 (the contract\'s last unconsumed entry): src/data/passes.ts propagates ' +
       'with satellite.js v5 (v7 ships a wasm build whose node: imports break bundling), ' +
       'and the pure core was cross-checked against Skyfield — 12/12 NYC passes matched to ' +
-      'the minute, max elevation within ~1 degree (30 s sampling).',
+      'the minute, max elevation within ~1 degree (30 s sampling). ' +
+      'PROBE ETIQUETTE (learned 2026-08-18): probing this on every CI push earned a 503 — ' +
+      'the polling floor is enforced, exactly as this entry always said. probePolitely ' +
+      'keeps it out of push-triggered probes; the daily scheduled run opts back in.',
     verifiedAt: '2026-08-18',
   },
 

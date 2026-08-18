@@ -46,6 +46,8 @@ export interface Source {
   attributionUrl?: string;
   /** Documented limits — enforced centrally by the fetch scheduler, not per call site. */
   rateLimit: string;
+  /** Declares a hard polling floor: probed only by opted-in (scheduled) runs, never per push. */
+  probePolitely?: boolean;
   notes: string;
   /** ISO date of the last first-hand verification of status + CORS. */
   verifiedAt: string;

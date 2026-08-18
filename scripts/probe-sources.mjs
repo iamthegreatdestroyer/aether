@@ -140,7 +140,24 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
-const targets = tierArg ? SOURCES.filter((s) => s.tier === tierArg) : SOURCES;
+// Sources declaring a hard polling floor are OPT-IN, not opt-out: a new one is protected
+// by default. Probing CelesTrak (documented HARD 2 h floor) on every push earned a 503 on
+// 2026-08-18 — the contract's own rate-limit note, enforced by the provider.
+const includePolite = process.argv.includes('--include-polite');
+const politeSkipped = includePolite ? [] : SOURCES.filter((s) => s.probePolitely);
+
+const targets = (tierArg ? SOURCES.filter((s) => s.tier === tierArg) : SOURCES).filter(
+  (s) => includePolite || !s.probePolitely,
+);
+
+if (politeSkipped.length > 0) {
+  // Never a silent cap: say what was not checked and why.
+  console.log(
+    `Skipping ${politeSkipped.length} rate-limit-sensitive source(s) — ` +
+      `${politeSkipped.map((s) => s.id).join(', ')}. Pass --include-polite (the daily ` +
+      `scheduled run does) to probe them.`,
+  );
+}
 
 if (targets.length === 0) {
   console.error(`No sources match --tier ${tierArg}`);
