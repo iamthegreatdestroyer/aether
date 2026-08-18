@@ -115,6 +115,29 @@ export const SOURCES = [
     verifiedAt: '2026-08-17',
   },
 
+  {
+    id: 'open-meteo-ensemble',
+    name: 'Open-Meteo ensemble (GFS members)',
+    role: 'Honesty labels — per-day predictability from real ensemble spread',
+    baseUrl: 'https://ensemble-api.open-meteo.com/v1/ensemble',
+    probeUrl:
+      'https://ensemble-api.open-meteo.com/v1/ensemble?latitude=40.7&longitude=-74.0&hourly=temperature_2m&models=gfs_seamless&forecast_days=1',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 500,
+    license: 'Data CC BY 4.0; free tier non-commercial',
+    attribution: 'Weather data by Open-Meteo.com',
+    attributionUrl: 'https://open-meteo.com/',
+    rateLimit: 'shares the Open-Meteo pool; 3 h TTL cache per location',
+    notes:
+      'Third Open-Meteo host in the contract (forecast / archive / ensemble). Verified ' +
+      '2026-08-17: CORS *, 7 days x 31 GFS members x 2 vars = 8.3 KB gzipped. Member series ' +
+      'naming: temperature_2m, then temperature_2m_member01..member30. Attribution dedupes ' +
+      'with the other Open-Meteo entries.',
+    verifiedAt: '2026-08-17',
+  },
+
   // ------------------------------------------------------- radar / satellite
   {
     id: 'librewxr',

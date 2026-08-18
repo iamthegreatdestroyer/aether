@@ -238,6 +238,15 @@ html, body {
 .day-name { color: var(--muted); }
 .day-glyph { font-size: 16px; margin: 2px 0; }
 .day-precip { color: var(--muted); }
+.day-pred {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--accent);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 2px;
+  cursor: help;
+}
+.day-pred.is-low { color: var(--warn); }
 
 .card-meta { margin-top: 8px; font-size: 11px; color: var(--muted); }
 .card.is-stale .card-meta { color: var(--warn); }

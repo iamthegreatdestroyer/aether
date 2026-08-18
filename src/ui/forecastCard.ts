@@ -9,6 +9,7 @@
 import { describeWeather } from '../data/openmeteo';
 import type { ForecastData } from '../data/openmeteo';
 import type { Weirdness } from '../data/climatology';
+import type { DayHonesty } from '../data/ensemble';
 import type { SavedLocation } from './locations';
 
 export interface CardState {
@@ -21,6 +22,8 @@ export interface CardState {
   error: string | null;
   /** "Is this weird?" — today's forecast vs 85 years of local history. Null until computed. */
   weirdness: Weirdness | null;
+  /** Per-day honesty labels from real ensemble spread. Null until fetched. */
+  honesty: DayHonesty[] | null;
 }
 
 function ageLabel(fetchedAt: number): string {
@@ -108,11 +111,20 @@ export function renderCard(state: CardState, onRemove: (id: string) => void): HT
     const d = describeWeather(code);
     const cell = document.createElement('div');
     cell.className = 'day';
+    // Honesty badge: predictability that shows its work. The tooltip carries the full
+    // derivation — members, spread, climatological yardstick — so the number is checkable.
+    const h = state.honesty?.find((x) => x.date === iso) ?? null;
+    const badge = h
+      ? `<div class="day-pred ${h.predictabilityPct !== null && h.predictabilityPct < 40 ? 'is-low' : ''}"
+           title="${h.tooltip.replace(/"/g, '&quot;')}">${
+             h.predictabilityPct !== null ? `${h.predictabilityPct}%` : `±${h.tmaxStd.toFixed(1)}°`
+           }${h.rainSplit ? ' ⚡' : ''}</div>`
+      : '';
     cell.innerHTML = `
       <div class="day-name">${i === 0 ? 'Today' : dayName(iso)}</div>
       <div class="day-glyph" role="img" aria-label="${d.label}">${d.glyph}</div>
       <div class="day-temps">${Math.round(hi)}° / ${Math.round(lo)}°</div>
-      <div class="day-precip">${pp ?? 0}% 💧</div>`;
+      <div class="day-precip">${pp ?? 0}% 💧</div>${badge}`;
     days.append(cell);
   }
   el.append(days);

@@ -568,3 +568,19 @@ the ledger states this in its output rather than scoring a quietly diminished fi
 
 NHC sends no CORS header (verified), so the mirror-to-Pages pattern was the design anyway —
 same cadence, same degrade-to-snapshot rule as the wind texture.
+
+### 9.6 Honesty labels — SHIPPED 2026-08-17
+
+§9.3-E, built to a higher standard than the inspiration: Windy prints "70% predictability"
+with no visible basis; Aether's per-day badge derives it —
+`1 − ensemble spread ÷ climatological variability` — from 31 real GFS members (8.3 KB
+gzipped/location, verified) against the same 85-year ERA5 yardstick "Is this weird?" already
+cached. 100% = members agree perfectly; 0% = the forecast tells you nothing beyond the month.
+The tooltip shows every step: members, range, σ, climate σ, result. The ⚡ split flag is
+Windy's "convective rain (difficult to forecast)" made quantitative: shown when 25–75% of
+members disagree on rain at all, with the count (e.g. 21/31 wet).
+
+First live render read like a meteorology lecture: NYC 53→75→80% as the pattern locks in,
+collapsing to 38% at day 4; contested-rain Tuesday flagged. Third Open-Meteo host in the
+contract (forecast/archive/ensemble), attribution dedup already handled. Cache: 3 h TTL via
+a prefixed STORE_LATEST key — no schema change, no DB version dance.

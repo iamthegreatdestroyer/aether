@@ -27,6 +27,7 @@ import { runScorer, summarize } from './data/scorer';
 import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
 import { isThisWeird } from './data/climatology';
+import { fetchHonesty } from './data/ensemble';
 import { buildStormDialog, loadStormLedger, renderStorms, showStormOnMap } from './ui/stormPanel';
 import type { StormLedger } from './ui/stormPanel';
 import { fetchOvation, sampleAurora } from './data/space';
@@ -114,7 +115,7 @@ function renderCards(): void {
   rail.replaceChildren(
     ...locations.map((loc) =>
       renderCard(
-        cardStates.get(loc.id) ?? { loc, data: null, fetchedAt: null, stale: false, error: null, weirdness: null },
+        cardStates.get(loc.id) ?? { loc, data: null, fetchedAt: null, stale: false, error: null, weirdness: null, honesty: null },
         handleRemove,
       ),
     ),
@@ -138,6 +139,7 @@ function setCardState(loc: SavedLocation, patch: Partial<CardState>): void {
     stale: false,
     error: null,
     weirdness: null,
+    honesty: null,
   };
   const next = { ...prev, ...patch, loc };
   cardStates.set(loc.id, next);
@@ -194,6 +196,14 @@ async function hydrateLocation(loc: SavedLocation): Promise<void> {
       }
     } catch (err) {
       console.warn('[weird]', err);
+    }
+    // Honesty labels: per-day predictability from real ensemble spread. 3 h cached; failure
+    // leaves the badges absent, never the card broken.
+    try {
+      const honesty = await fetchHonesty(loc);
+      setCardState(loc, { honesty });
+    } catch (err) {
+      console.warn('[honesty]', err);
     }
   } catch (err) {
     // A failed refresh with a snapshot on screen is not an error state — the badge already
@@ -443,6 +453,10 @@ if ('serviceWorker' in navigator) {
     );
   },
   storms: () => loadStormLedger(),
+  honesty: (i = 0) => {
+    const loc = locations[i];
+    return loc ? fetchHonesty(loc) : Promise.resolve(null);
+  },
   /** Headless render proof — see WindLayer.debugStep. */
   windStep: (n?: number) => windLayer.debugStep(n),
   radar: () => radar.state,

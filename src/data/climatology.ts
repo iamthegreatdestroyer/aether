@@ -121,6 +121,27 @@ function tier(tmaxPct: number, tminPct: number): { label: string; glyph: string;
 }
 
 /**
+ * Climatological variability of the daily high around a date — the natural yardstick the
+ * predictability label divides by. If the ensemble's spread is as wide as this, the forecast
+ * adds nothing beyond "it's August"; if it's much narrower, the models genuinely know
+ * something. Reuses the same cached 85-year record as isThisWeird().
+ */
+export async function climatologySigma(
+  loc: SavedLocation,
+  date: string,
+): Promise<{ std: number; n: number }> {
+  const clim = await loadOrFetch(loc);
+  const targetMd = Number(date.slice(5, 7)) * 100 + Number(date.slice(8, 10));
+  const pool: number[] = [];
+  for (let i = 0; i < clim.monthDay.length; i++) {
+    if (mdDistance(clim.monthDay[i]!, targetMd) <= WINDOW_DAYS) pool.push(clim.tmax[i]!);
+  }
+  const mean = pool.reduce((a, b) => a + b, 0) / pool.length;
+  const std = Math.sqrt(pool.reduce((a, b) => a + (b - mean) ** 2, 0) / pool.length);
+  return { std, n: pool.length };
+}
+
+/**
  * The question, answered: how unusual is this forecast high/low for this place and date?
  * `date` is the forecast day's ISO date; values in °C (the app's data unit).
  */
