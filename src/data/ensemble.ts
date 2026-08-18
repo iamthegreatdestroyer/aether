@@ -1,20 +1,18 @@
 /**
- * Honesty labels — per-day predictability that shows its work (plan §9.3-E).
+ * Ensemble bundle — honesty labels (P-tour §9.3-E) + the Confidence Cone (P5).
  *
- * Windy prints "70% predictability" on each day header with no visible basis. This module
- * computes the same kind of number from first principles and can explain every step in its
- * tooltip:
+ * One fetch serves both: 31 GEFS members + 51 ECMWF ENS members, hourly, 7 days, in a single
+ * multi-model call (~17 KB gzipped). The daily aggregation feeds the per-day predictability
+ * badges; the hourly percentile bands feed the cone chart — model disagreement AS the
+ * forecast, which is the proposal's Confidence Cone concept (#5) verbatim.
  *
- *   predictability = 1 − (ensemble spread ÷ climatological variability)
+ * Key naming (live-verified): the API canonicalizes model names in suffixes — request
+ * `gfs_seamless` and members come back as `temperature_2m_member01_ncep_gefs_seamless`,
+ * request `ecmwf_ifs025` and they end `_ecmwf_ifs025_ensemble`, with the control member
+ * carrying no `_memberNN` infix. Parsing is by regex, not by echoing the request strings.
  *
- * 31 real GFS ensemble members give the spread (verified: day-2 members agree within
- * ±0.8 °C; day-6 they span 13 °C). The 85-year ERA5 record already cached for "Is this
- * weird?" gives the yardstick. 100% = the members agree perfectly; 0% = their spread is as
- * wide as the climate's own scatter, i.e. the forecast tells you nothing beyond the month.
- *
- * The second label is the split flag: when members genuinely disagree about whether it will
- * rain at all (the contested middle, 25–75% of members wet), the day is marked — Windy's
- * "convective rain (difficult to forecast)" made quantitative, with the member count shown.
+ * Honesty labels remain scoped to GEFS members only — the badge SAYS "31 GFS ensemble
+ * members", so mixing ENS into that number would falsify its own caption.
  */
 
 import { STORE_LATEST, dbGet, dbPut } from './db';
@@ -26,44 +24,90 @@ import type { SavedLocation } from '../ui/locations';
 
 export interface DayHonesty {
   date: string;
-  /** Ensemble members' daily-high range. */
   tmaxLo: number;
   tmaxHi: number;
   tmaxStd: number;
   members: number;
-  /** 0–100, or null while climatology is still downloading. */
   predictabilityPct: number | null;
   climStd: number | null;
-  /** Members forecasting measurable rain that day. */
   wetMembers: number;
-  /** True when the wet fraction is in the contested middle — rain genuinely undecided. */
   rainSplit: boolean;
   tooltip: string;
 }
 
-interface CacheRow {
-  fetchedAt: number;
-  days: DayHonesty[];
+export interface HourlyBand {
+  min: number[];
+  p10: number[];
+  median: number[];
+  p90: number[];
+  max: number[];
+  members: number;
 }
 
-/** Spread changes with each model cycle (~6 h); 3 h TTL keeps calls modest and labels fresh. */
+export interface ConeData {
+  time: string[];
+  gefs: HourlyBand | null;
+  ens: HourlyBand | null;
+  /** Fraction of GEFS members with measurable rain, per hour — the bottom strip. */
+  wetFracGefs: number[];
+}
+
+interface Bundle {
+  fetchedAt: number;
+  days: DayHonesty[];
+  cone: ConeData;
+}
+
 const TTL_MS = 3 * 60 * 60 * 1000;
-const WET_MM = 0.2;
+const WET_MM = 0.1;
+/** v2: cache shape changed when the cone joined the bundle. */
+const cacheKey = (lk: string) => `ens2|${lk}`;
 
-const cacheKey = (lk: string) => `ens|${lk}`;
+const MEMBER_RE = /^temperature_2m(?:_member(\d+))?_(.+)$/;
+const PRECIP_RE = /^precipitation(?:_member(\d+))?_(.+)$/;
 
-export async function fetchHonesty(loc: SavedLocation): Promise<DayHonesty[]> {
+function isGefs(model: string): boolean {
+  return model.includes('gefs');
+}
+function isEns(model: string): boolean {
+  return model.includes('ifs025_ensemble') || model.includes('ecmwf');
+}
+
+function bandOf(series: number[][], nHours: number): HourlyBand | null {
+  if (series.length < 5) return null;
+  const min: number[] = [];
+  const p10: number[] = [];
+  const median: number[] = [];
+  const p90: number[] = [];
+  const max: number[] = [];
+  for (let h = 0; h < nHours; h++) {
+    const vals = series.map((s) => s[h]).filter((v): v is number => v != null);
+    if (vals.length < 5) {
+      min.push(NaN); p10.push(NaN); median.push(NaN); p90.push(NaN); max.push(NaN);
+      continue;
+    }
+    vals.sort((a, b) => a - b);
+    const q = (f: number) => vals[Math.min(vals.length - 1, Math.round(f * (vals.length - 1)))]!;
+    min.push(vals[0]!);
+    p10.push(q(0.1));
+    median.push(q(0.5));
+    p90.push(q(0.9));
+    max.push(vals[vals.length - 1]!);
+  }
+  return { min, p10, median, p90, max, members: series.length };
+}
+
+async function fetchBundle(loc: SavedLocation): Promise<Bundle> {
   const lk = locationKey(loc);
-  const cached = await dbGet<CacheRow>(STORE_LATEST, cacheKey(lk));
-  if (cached && Date.now() - cached.fetchedAt < TTL_MS) return cached.days;
+  const cached = await dbGet<Bundle>(STORE_LATEST, cacheKey(lk));
+  if (cached && Date.now() - cached.fetchedAt < TTL_MS) return cached;
 
   const s = source('open-meteo-ensemble');
-  if (!s.baseUrl) throw new Error('open-meteo-ensemble contract entry has no baseUrl');
-  const u = new URL(s.baseUrl);
+  const u = new URL(s.baseUrl!);
   u.searchParams.set('latitude', loc.lat.toFixed(4));
   u.searchParams.set('longitude', loc.lon.toFixed(4));
   u.searchParams.set('hourly', 'temperature_2m,precipitation');
-  u.searchParams.set('models', 'gfs_seamless');
+  u.searchParams.set('models', 'gfs_seamless,ecmwf_ifs025');
   u.searchParams.set('forecast_days', '7');
   u.searchParams.set('timezone', 'auto');
 
@@ -72,41 +116,62 @@ export async function fetchHonesty(loc: SavedLocation): Promise<DayHonesty[]> {
     u.toString(),
   );
   const time = raw.hourly.time;
-  const tempKeys = Object.keys(raw.hourly).filter((k) => k.startsWith('temperature_2m'));
-  const precKeys = Object.keys(raw.hourly).filter((k) => k.startsWith('precipitation'));
 
+  const gefsTemp: number[][] = [];
+  const ensTemp: number[][] = [];
+  const gefsPrec: number[][] = [];
+  for (const k of Object.keys(raw.hourly)) {
+    const mt = MEMBER_RE.exec(k);
+    if (mt) {
+      const series = raw.hourly[k] as number[];
+      if (isGefs(mt[2]!)) gefsTemp.push(series);
+      else if (isEns(mt[2]!)) ensTemp.push(series);
+      continue;
+    }
+    const mp = PRECIP_RE.exec(k);
+    if (mp && isGefs(mp[2]!)) gefsPrec.push(raw.hourly[k] as number[]);
+  }
+
+  const wetFracGefs = time.map((_, h) => {
+    if (gefsPrec.length === 0) return 0;
+    let wet = 0;
+    for (const s2 of gefsPrec) if ((s2[h] ?? 0) >= WET_MM) wet++;
+    return +(wet / gefsPrec.length).toFixed(2);
+  });
+
+  const cone: ConeData = {
+    time,
+    gefs: bandOf(gefsTemp, time.length),
+    ens: bandOf(ensTemp, time.length),
+    wetFracGefs,
+  };
+
+  // ---- daily honesty (GEFS only, matching its own caption)
   const dates = [...new Set(time.map((t) => t.slice(0, 10)))].sort();
   const days: DayHonesty[] = [];
-
   for (const date of dates) {
     const idx: number[] = [];
     for (let i = 0; i < time.length; i++) if (time[i]!.startsWith(date)) idx.push(i);
-
     const tmaxes: number[] = [];
-    for (const k of tempKeys) {
-      const series = raw.hourly[k] as Array<number | null>;
+    for (const s2 of gefsTemp) {
       let mx = -Infinity;
       for (const i of idx) {
-        const v = series[i];
-        if (v !== null && v !== undefined && v > mx) mx = v;
+        const v = s2[i];
+        if (v != null && v > mx) mx = v;
       }
       if (mx > -Infinity) tmaxes.push(mx);
     }
     let wet = 0;
-    for (const k of precKeys) {
-      const series = raw.hourly[k] as Array<number | null>;
+    for (const s2 of gefsPrec) {
       let sum = 0;
-      for (const i of idx) sum += series[i] ?? 0;
-      if (sum >= WET_MM) wet++;
+      for (const i of idx) sum += s2[i] ?? 0;
+      if (sum >= 0.2) wet++;
     }
     if (tmaxes.length < 5) continue;
-
     const mean = tmaxes.reduce((a, b) => a + b, 0) / tmaxes.length;
     const std = Math.sqrt(tmaxes.reduce((a, b) => a + (b - mean) ** 2, 0) / tmaxes.length);
-    const wetFrac = wet / precKeys.length;
+    const wetFrac = gefsPrec.length ? wet / gefsPrec.length : 0;
 
-    // Climatology may still be downloading on a brand-new location; the label degrades to
-    // spread-only rather than blocking, and the next refresh fills the percentage in.
     let predictabilityPct: number | null = null;
     let climStd: number | null = null;
     try {
@@ -114,7 +179,7 @@ export async function fetchHonesty(loc: SavedLocation): Promise<DayHonesty[]> {
       climStd = sig.std;
       predictabilityPct = Math.round(100 * Math.max(0, Math.min(1, 1 - std / sig.std)));
     } catch {
-      /* chip shows spread only */
+      /* spread-only badge */
     }
 
     const rainSplit = wetFrac >= 0.25 && wetFrac <= 0.75;
@@ -125,7 +190,7 @@ export async function fetchHonesty(loc: SavedLocation): Promise<DayHonesty[]> {
         ? `Typical variability here for this date: σ ${climStd.toFixed(1)}° (1940–2024) → ` +
           `${predictabilityPct}% predictability.`
         : 'Climatology still loading — showing raw spread.') +
-      (rainSplit ? ` Rain contested: ${wet}/${precKeys.length} members wet.` : '');
+      (rainSplit ? ` Rain contested: ${wet}/${gefsPrec.length} members wet.` : '');
 
     days.push({
       date,
@@ -141,6 +206,15 @@ export async function fetchHonesty(loc: SavedLocation): Promise<DayHonesty[]> {
     });
   }
 
-  await dbPut(STORE_LATEST, { fetchedAt: Date.now(), days } satisfies CacheRow, cacheKey(lk));
-  return days;
+  const bundle: Bundle = { fetchedAt: Date.now(), days, cone };
+  await dbPut(STORE_LATEST, bundle, cacheKey(lk));
+  return bundle;
+}
+
+export async function fetchHonesty(loc: SavedLocation): Promise<DayHonesty[]> {
+  return (await fetchBundle(loc)).days;
+}
+
+export async function fetchCone(loc: SavedLocation): Promise<ConeData> {
+  return (await fetchBundle(loc)).cone;
 }

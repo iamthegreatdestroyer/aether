@@ -606,3 +606,22 @@ that does not exist yet (FIRMS + HRRR-Smoke are their own Tier B work).
 **The Windy-tour scoreboard: all four ideas shipped within ~30 h of the tour** — "Is this
 weird?" (9.4), storm ledger (9.5), honesty labels (9.6), trajectory sampler (9.7). The
 classic roadmap resumes at P5 (divergence layer) and P6 (Tauri desktop).
+
+(NOTE: P5 row replace missed — see §9.8 below.)
+
+### 9.8 P5 shipped — the ensemble story (2026-08-18)
+
+**Confidence Cone**: 📈 on every card. One multi-model ensemble call (~17 KB gz) now feeds
+both the honesty badges (GEFS-only, matching their caption) and hourly p10–p90 bands for
+GEFS (31) + ECMWF ENS (51), medians, min/max whiskers, the deterministic card value overlaid
+dashed — "the confident number you were given is one path through a widening cone" — and a
+GEFS rain-agreement strip. Verified: spread widens 1.6°→7.3° across the week; ENS visibly
+sharper than GEFS at day 7 (4.0° vs 7.3°).
+
+**Divergence layer**: 🤖 toggle. Tier B fetches IFS + AIFS 2 m temp for one cycle at
+24/48/72/96/120 h via byte-Range requests against the .index files (live-verified layout;
+CCSDS packing → ecCodes on the runner, WSL-verified locally in the CI-identical env),
+colorizes |diff| transparent-below-0.5 °C → amber → magenta, ships ~40 KB world PNGs.
+Client renders as a MapLibre image source with a lead selector and the honest legend: "not
+an error map — a humility map." First build: 5.4% of the globe >2 °C at +24 h rising to
+17.7% at +120 h, max divergence 22.5 °C. The 2025–26-window feature exists in production.

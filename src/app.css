@@ -99,6 +99,45 @@ html, body {
 .aurora-none { color: var(--muted); }
 .delta-big { color: var(--warn); }
 
+/* ---- confidence cone ---- */
+.cone-dialog { max-width: 720px; }
+.cone-svg { width: 100%; height: auto; background: rgba(255,255,255,0.02); border-radius: 8px; }
+.cone-axis { fill: var(--muted); font-size: 10px; }
+.cone-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 8px; }
+.cone-legend i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.sw-gefs { background: rgba(106,169,255,0.5); }
+.sw-ens { background: rgba(251,191,36,0.45); }
+.sw-det { background: #e8edf7; height: 2px !important; vertical-align: middle; }
+.sw-rain { background: rgba(106,169,255,0.6); }
+.card-cone {
+  margin-left: auto; background: none; border: none; font-size: 13px;
+  cursor: pointer; padding: 0 4px; opacity: 0.7;
+}
+.card-cone:hover { opacity: 1; }
+.card-remove { margin-left: 4px; }
+
+/* ---- divergence legend ---- */
+#div-legend {
+  position: absolute; z-index: 6; right: 12px; bottom: 76px; width: 300px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 12px; backdrop-filter: blur(10px); font-size: 11px;
+}
+.div-title { font-weight: 600; font-size: 12px; margin-bottom: 5px; }
+.div-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.div-lead {
+  background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 2px 7px; font: inherit; font-size: 11px; cursor: pointer;
+}
+.div-lead.is-on { border-color: var(--accent); color: var(--accent); }
+.div-scale i {
+  display: inline-block; width: 56px; height: 8px; border-radius: 4px; vertical-align: middle;
+  margin-right: 4px;
+  background: linear-gradient(90deg, rgba(217,197,74,0.4), #e0973d, #d94040, #c83cb4);
+}
+.div-scale, .div-stats { color: var(--muted); }
+.div-note { color: var(--muted); margin-top: 5px; line-height: 1.45; }
+.div-attr { color: var(--muted); font-size: 9px; margin-top: 4px; opacity: 0.8; }
+
 /* ---- route bar ---- */
 #route-bar {
   position: absolute;

@@ -38,7 +38,11 @@ function dayName(iso: string): string {
   return new Date(`${iso}T12:00`).toLocaleDateString(undefined, { weekday: 'short' });
 }
 
-export function renderCard(state: CardState, onRemove: (id: string) => void): HTMLElement {
+export function renderCard(
+  state: CardState,
+  onRemove: (id: string) => void,
+  onCone?: (loc: SavedLocation) => void,
+): HTMLElement {
   const el = document.createElement('article');
   el.className = 'card';
   el.dataset['locId'] = state.loc.id;
@@ -52,7 +56,17 @@ export function renderCard(state: CardState, onRemove: (id: string) => void): HT
   remove.setAttribute('aria-label', `Remove ${state.loc.name}`);
   remove.textContent = '×';
   remove.addEventListener('click', () => onRemove(state.loc.id));
-  head.append(title, remove);
+  if (onCone && state.data) {
+    const cone = document.createElement('button');
+    cone.className = 'card-cone';
+    cone.title = 'Confidence cone — ensemble spread for this location';
+    cone.setAttribute('aria-label', `Confidence cone for ${state.loc.name}`);
+    cone.textContent = '📈';
+    cone.addEventListener('click', () => onCone(state.loc));
+    head.append(title, cone, remove);
+  } else {
+    head.append(title, remove);
+  }
   el.append(head);
 
   if (state.error) {

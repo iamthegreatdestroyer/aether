@@ -1,0 +1,97 @@
+{
+ "cycle": "20260817T1800Z",
+ "variable": "|IFS \u2212 AIFS| 2 m temperature",
+ "units": "\u00b0C",
+ "leads": [
+  {
+   "lead": 24,
+   "file": "t2m-24h.png",
+   "maxDiffC": 11.6,
+   "meanDiffC": 0.58,
+   "pctOver2C": 5.4
+  },
+  {
+   "lead": 48,
+   "file": "t2m-48h.png",
+   "maxDiffC": 12.3,
+   "meanDiffC": 0.72,
+   "pctOver2C": 8.5
+  },
+  {
+   "lead": 72,
+   "file": "t2m-72h.png",
+   "maxDiffC": 16.3,
+   "meanDiffC": 0.86,
+   "pctOver2C": 11.1
+  },
+  {
+   "lead": 96,
+   "file": "t2m-96h.png",
+   "maxDiffC": 19.3,
+   "meanDiffC": 0.97,
+   "pctOver2C": 12.5
+  },
+  {
+   "lead": 120,
+   "file": "t2m-120h.png",
+   "maxDiffC": 22.5,
+   "meanDiffC": 1.27,
+   "pctOver2C": 17.7
+  }
+ ],
+ "bounds": [
+  -180,
+  -90,
+  180,
+  90
+ ],
+ "ramp": [
+  [
+   0.5,
+   [
+    0,
+    0,
+    0,
+    0
+   ]
+  ],
+  [
+   1.0,
+   [
+    217,
+    197,
+    74,
+    90
+   ]
+  ],
+  [
+   2.0,
+   [
+    224,
+    151,
+    61,
+    150
+   ]
+  ],
+  [
+   4.0,
+   [
+    217,
+    64,
+    64,
+    200
+   ]
+  ],
+  [
+   8.0,
+   [
+    200,
+    60,
+    180,
+    235
+   ]
+  ]
+ ],
+ "builtAt": "2026-08-18T02:16:18+00:00",
+ "attribution": "This service is based on data and products of ECMWF. \u00a9 2026 ECMWF (CC BY 4.0). Field derived: |IFS \u2212 AIFS| at 2 m."
+}

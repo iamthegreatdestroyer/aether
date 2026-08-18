@@ -28,6 +28,7 @@ import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
 import { isThisWeird } from './data/climatology';
 import { fetchHonesty } from './data/ensemble';
+import { buildConeDialog, renderCone } from './ui/coneDialog';
 import { buildStormDialog, loadStormLedger, renderStorms, showStormOnMap } from './ui/stormPanel';
 import { addWaypoint, debugRoute, initRoutePanel, isRouteMode } from './ui/routePanel';
 import type { StormLedger } from './ui/stormPanel';
@@ -42,6 +43,7 @@ import { buildSourcesDialog, renderFooter } from './ui/attribution';
 import { WindLayer } from './particles/windLayer';
 import { RadarLayer } from './layers/radar';
 import { SatelliteLayer } from './layers/satellite';
+import { DivergenceLayer } from './layers/divergence';
 import { blockedSources, setBlockedSources } from './data/fetcher';
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
@@ -117,12 +119,20 @@ function handleRemove(id: string): void {
   renderCards();
 }
 
+const coneDialog = buildConeDialog();
+
+function openCone(loc: SavedLocation): void {
+  coneDialog.showModal();
+  void renderCone(coneDialog, loc, cardStates.get(loc.id)?.data ?? null);
+}
+
 function renderCards(): void {
   rail.replaceChildren(
     ...locations.map((loc) =>
       renderCard(
         cardStates.get(loc.id) ?? { loc, data: null, fetchedAt: null, stale: false, error: null, weirdness: null, honesty: null },
         handleRemove,
+        openCone,
       ),
     ),
   );
@@ -226,6 +236,47 @@ function refreshAll(): void {
   // delay rather than awaited — scoring is bookkeeping, never in the render path.
   window.setTimeout(() => void runScorer(), 20_000);
 }
+
+// ------------------------------------------------------- AI-vs-physics divergence
+
+const divergence = new DivergenceLayer(map);
+const divToggle = document.getElementById('div-toggle') as HTMLButtonElement;
+const divLegend = document.getElementById('div-legend') as HTMLDivElement;
+
+function renderDivLegend(): void {
+  const s = divergence.state;
+  divLegend.hidden = !s.enabled;
+  divToggle.classList.toggle('is-on', s.enabled);
+  if (!s.enabled) return;
+  const chips = s.leads
+    .map((l) => `<button class="div-lead ${l === s.lead ? 'is-on' : ''}" data-lead="${l}">+${l}h</button>`)
+    .join('');
+  divLegend.innerHTML = `
+    <div class="div-title">🤖 AI vs physics — |IFS − AIFS| 2 m temp · cycle ${s.cycle?.slice(9, 14) ?? ''}</div>
+    <div class="div-row">${chips}
+      <span class="div-scale"><i></i>0.5° → 8°+</span>
+      ${s.stats ? `<span class="div-stats">${s.stats.pctOver2C}% of globe >2° apart · max ${s.stats.max}°</span>` : ''}
+    </div>
+    <div class="div-note">Not an error map — a humility map. Where it lights up, nobody knows yet
+      which philosophy is right; hold the forecast loosely. ${'' /* attribution below */}</div>
+    <div class="div-attr">${s.attribution ?? ''}</div>`;
+  divLegend.querySelectorAll<HTMLButtonElement>('.div-lead').forEach((b) =>
+    b.addEventListener('click', () => divergence.setLead(Number(b.dataset['lead']))),
+  );
+}
+divergence.onChange = renderDivLegend;
+
+divToggle.addEventListener('click', () => {
+  if (divergence.state.enabled) divergence.disable();
+  else {
+    whenStyleReady(() => {
+      divergence.enable().catch((err) => {
+        divToggle.title = err instanceof Error ? err.message : String(err);
+        console.warn('[divergence]', err);
+      });
+    });
+  }
+});
 
 // ---------------------------------------------------------------- wind layer
 
@@ -465,6 +516,14 @@ if ('serviceWorker' in navigator) {
     );
   },
   storms: () => loadStormLedger(),
+  divergence: () => divergence.state,
+  divergenceOn: () => divergence.enable().then(() => divergence.state),
+  cone: (i = 0) => {
+    const loc = locations[i];
+    if (!loc) return Promise.resolve(null);
+    openCone(loc);
+    return import('./data/ensemble').then((m2) => m2.fetchCone(loc));
+  },
   route: (wps: Array<{ lat: number; lon: number }>, mode = 'car', departH = 0) =>
     debugRoute(wps, mode as never, departH),
   honesty: (i = 0) => {
