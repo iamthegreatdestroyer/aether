@@ -524,3 +524,8 @@ html, body {
   /* The scrubber rides above whatever height the rail currently has (set by main.ts). */
   #timeline { bottom: calc(var(--rail-h, 120px) + 40px); }
 }
+
+/* A collapsed card is one line by definition — "New York" wrapping made its card taller
+   than its neighbours in the strip. */
+.card.is-collapsed header { flex-wrap: nowrap; }
+.card.is-collapsed h2 { white-space: nowrap; }
