@@ -51,6 +51,22 @@ html, body {
 
 #topbar button.is-on { border-color: var(--accent); color: var(--accent); }
 
+/* ---- "Is this weird?" chip ---- */
+.weird-chip {
+  margin: 2px 0 8px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.weird-chip.is-notable {
+  color: var(--text);
+  background: rgba(251, 191, 36, 0.09);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+.weird-chip .weird-glyph { margin-right: 2px; }
+
 /* ---- receipts dialog ---- */
 .receipts-dialog section { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 8px; }
 .receipts-dialog h3 { margin: 4px 0; font-size: 14px; }

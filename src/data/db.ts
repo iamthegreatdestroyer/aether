@@ -14,7 +14,16 @@ const DB_NAME = 'aether';
 // re-fires at the same version, so any DB in that state is stuck. The handler below is
 // contains()-guarded and therefore idempotent — bumping the version is always safe and is
 // the correct recovery for exactly this situation.
-const DB_VERSION = 3;
+// v5. The HMR upgrade trap bit TWICE, through two different doors: v2 died in the window
+// between two file EDITS; v4 died in the window between two sequential TOOL CALLS, because
+// the live dev page hot-reloaded and opened the DB the moment the version constant changed,
+// before the store-creation edit landed. The durable fix is structural, not procedural:
+// creation below is driven by one manifest array, so "bump the version" and "create every
+// missing store" can never be split across an edit boundary again. Any half-upgraded DB
+// heals on the next bump because every store is contains()-guarded.
+const DB_VERSION = 5;
+/** Per-location ERA5 climatology, fetched once and kept forever — climate history is stable. */
+export const STORE_CLIMATOLOGY = 'climatology';
 
 /** Append-only fetch-time forecast log. The verification ledger scores it at T+1 (P3). */
 export const STORE_FORECAST_LOG = 'forecast_log';
@@ -33,21 +42,28 @@ function open(): Promise<IDBDatabase> {
     req.onupgradeneeded = () => {
       // Additive-only migrations: v1 stores are never touched, so P0-era receipts survive
       // every upgrade — an append-only ledger that loses history on migration is not one.
+      // ONE manifest drives creation; adding a store means adding a row here and bumping
+      // DB_VERSION in the same expression's file — never two separated edits.
       const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_FORECAST_LOG)) {
-        const log = db.createObjectStore(STORE_FORECAST_LOG, { autoIncrement: true });
-        log.createIndex('by_location_time', ['locationKey', 'fetchedAt']);
-      }
-      if (!db.objectStoreNames.contains(STORE_LATEST)) {
-        db.createObjectStore(STORE_LATEST);
-      }
-      if (!db.objectStoreNames.contains(STORE_OBS)) {
-        const obs = db.createObjectStore(STORE_OBS);
-        obs.createIndex('by_location', 'locationKey');
-      }
-      if (!db.objectStoreNames.contains(STORE_SCORES)) {
-        const scores = db.createObjectStore(STORE_SCORES);
-        scores.createIndex('by_location', 'locationKey');
+      const manifest: Array<{
+        name: string;
+        options?: IDBObjectStoreParameters;
+        indexes?: Array<{ name: string; keyPath: string | string[] }>;
+      }> = [
+        {
+          name: STORE_FORECAST_LOG,
+          options: { autoIncrement: true },
+          indexes: [{ name: 'by_location_time', keyPath: ['locationKey', 'fetchedAt'] }],
+        },
+        { name: STORE_LATEST },
+        { name: STORE_OBS, indexes: [{ name: 'by_location', keyPath: 'locationKey' }] },
+        { name: STORE_SCORES, indexes: [{ name: 'by_location', keyPath: 'locationKey' }] },
+        { name: STORE_CLIMATOLOGY },
+      ];
+      for (const spec of manifest) {
+        if (db.objectStoreNames.contains(spec.name)) continue;
+        const store = db.createObjectStore(spec.name, spec.options);
+        for (const idx of spec.indexes ?? []) store.createIndex(idx.name, idx.keyPath);
       }
     };
     req.onsuccess = () => resolve(req.result);

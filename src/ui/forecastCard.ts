@@ -8,6 +8,7 @@
 
 import { describeWeather } from '../data/openmeteo';
 import type { ForecastData } from '../data/openmeteo';
+import type { Weirdness } from '../data/climatology';
 import type { SavedLocation } from './locations';
 
 export interface CardState {
@@ -18,6 +19,8 @@ export interface CardState {
   /** True when data came from the offline snapshot rather than the network. */
   stale: boolean;
   error: string | null;
+  /** "Is this weird?" — today's forecast vs 85 years of local history. Null until computed. */
+  weirdness: Weirdness | null;
 }
 
 function ageLabel(fetchedAt: number): string {
@@ -79,6 +82,19 @@ export function renderCard(state: CardState, onRemove: (id: string) => void): HT
       <div>wind ${Math.round(current.wind_speed_10m)} km/h</div>
     </div>`;
   el.append(now);
+
+  // "Is this weird?" — the normality chip. Quiet when normal, loud when the answer is yes:
+  // the whole point is that "should you care?" usually answers "no", and saying so plainly
+  // is what makes the loud days credible.
+  if (state.weirdness) {
+    const w = state.weirdness;
+    const chip = document.createElement('div');
+    const notable = w.label !== 'normal for the date';
+    chip.className = `weird-chip ${notable ? 'is-notable' : ''}`;
+    chip.title = `Forecast high = p${w.tmaxPct}, low = p${w.tminPct} of ${w.years} at this point`;
+    chip.innerHTML = `<span class="weird-glyph">${w.glyph}</span> <b>${w.label}</b> — ${w.sentence}`;
+    el.append(chip);
+  }
 
   const days = document.createElement('div');
   days.className = 'card-days';

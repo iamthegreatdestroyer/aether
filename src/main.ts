@@ -26,6 +26,7 @@ import { captureObservations } from './data/observations';
 import { runScorer, summarize } from './data/scorer';
 import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
+import { isThisWeird } from './data/climatology';
 import { fetchOvation, sampleAurora } from './data/space';
 import { balloonTruth } from './data/sondes';
 import { registerLayer } from './layers/registry';
@@ -111,7 +112,7 @@ function renderCards(): void {
   rail.replaceChildren(
     ...locations.map((loc) =>
       renderCard(
-        cardStates.get(loc.id) ?? { loc, data: null, fetchedAt: null, stale: false, error: null },
+        cardStates.get(loc.id) ?? { loc, data: null, fetchedAt: null, stale: false, error: null, weirdness: null },
         handleRemove,
       ),
     ),
@@ -134,6 +135,7 @@ function setCardState(loc: SavedLocation, patch: Partial<CardState>): void {
     fetchedAt: null,
     stale: false,
     error: null,
+    weirdness: null,
   };
   const next = { ...prev, ...patch, loc };
   cardStates.set(loc.id, next);
@@ -176,6 +178,21 @@ async function hydrateLocation(loc: SavedLocation): Promise<void> {
     }
     // Truth side: capture whatever observations exist for this location, then score.
     await captureObservations(loc).catch(() => []);
+    // "Is this weird?" — today's forecast high/low vs 85 years of ERA5 at this point.
+    // First call per location downloads ~162 KB of climatology; every call after reads
+    // IndexedDB. Failure leaves the chip absent, never the card broken.
+    try {
+      const d0 = data.daily;
+      const date = d0.time[0];
+      const hi = d0.temperature_2m_max[0];
+      const lo = d0.temperature_2m_min[0];
+      if (date !== undefined && hi !== undefined && lo !== undefined) {
+        const weirdness = await isThisWeird(loc, date, hi, lo);
+        setCardState(loc, { weirdness });
+      }
+    } catch (err) {
+      console.warn('[weird]', err);
+    }
   } catch (err) {
     // A failed refresh with a snapshot on screen is not an error state — the badge already
     // says "cached". Only surface the failure when there is nothing at all to show.
@@ -400,6 +417,17 @@ if ('serviceWorker' in navigator) {
   }),
   /** P1 exit check: picker vs Open-Meteo GFS at the texture's valid time. */
   sampleWind: (lng: number, lat: number) => windLayer.sampleWind(lng, lat),
+  weird: (i = 0) => {
+    const loc = locations[i];
+    const c = loc && cardStates.get(loc.id);
+    if (!loc || !c?.data) return Promise.resolve(null);
+    return isThisWeird(
+      loc,
+      c.data.daily.time[0]!,
+      c.data.daily.temperature_2m_max[0]!,
+      c.data.daily.temperature_2m_min[0]!,
+    );
+  },
   /** Headless render proof — see WindLayer.debugStep. */
   windStep: (n?: number) => windLayer.debugStep(n),
   radar: () => radar.state,

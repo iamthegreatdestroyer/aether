@@ -91,6 +91,30 @@ export const SOURCES = [
     verifiedAt: '2026-08-16',
   },
 
+  {
+    id: 'open-meteo-archive',
+    name: 'Open-Meteo ERA5 archive',
+    role: '"Is this weird?" — per-location climatology back to 1940',
+    baseUrl: 'https://archive-api.open-meteo.com/v1/archive',
+    probeUrl:
+      'https://archive-api.open-meteo.com/v1/archive?latitude=40.7&longitude=-74.0&start_date=2024-08-01&end_date=2024-08-07&daily=temperature_2m_max',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 200,
+    license: 'Data CC BY 4.0 (ERA5: Copernicus/ECMWF via Open-Meteo); free tier non-commercial',
+    attribution: 'Weather data by Open-Meteo.com',
+    attributionUrl: 'https://open-meteo.com/',
+    rateLimit: 'shares the Open-Meteo 10k/day pool; ONE full-history call per location, cached forever',
+    notes:
+      'Separate HOST from the forecast API — archive-api.open-meteo.com. Verified 2026-08-17: ' +
+      'CORS *, and the full 1940-2024 daily tmax+tmin history for one point is 698 KB raw / ' +
+      '~162 KB gzipped, served in under 2 s. Fetched once per location and cached permanently ' +
+      'in IndexedDB — climatology does not change. Same attribution string as the forecast ' +
+      'entry on purpose; requiredAttributions() dedupes by text.',
+    verifiedAt: '2026-08-17',
+  },
+
   // ------------------------------------------------------- radar / satellite
   {
     id: 'librewxr',
@@ -461,13 +485,25 @@ export function source(id) {
   return s;
 }
 
-/** Every attribution string that must appear on the Data Sources screen. */
+/**
+ * Every attribution string that must appear on the Data Sources screen.
+ * Deduped by display text: the forecast and archive APIs are both Open-Meteo and share one
+ * legally-required string — one obligation, one row, even though the contract tracks them as
+ * separate endpoints with separate probes.
+ */
 export function requiredAttributions() {
-  return SOURCES.filter((s) => s.attribution).map((s) => ({
-    id: s.id,
-    name: s.name,
-    text: s.attribution,
-    url: s.attributionUrl ?? null,
-    license: s.license,
-  }));
+  const seen = new Set();
+  const out = [];
+  for (const s of SOURCES) {
+    if (!s.attribution || seen.has(s.attribution)) continue;
+    seen.add(s.attribution);
+    out.push({
+      id: s.id,
+      name: s.name,
+      text: s.attribution,
+      url: s.attributionUrl ?? null,
+      license: s.license,
+    });
+  }
+  return out;
 }

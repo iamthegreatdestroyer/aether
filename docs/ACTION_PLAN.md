@@ -530,3 +530,24 @@ topic, and P6's Tauri build. Good confirmation the constraint is real and not ou
 - **High-resolution meteogram is Premium**; the standard one is free. Together with 3D being
   the paywall, the pattern is consistent: *resolution and spatial polish are paid; the
   underlying facts are free.*
+
+### 9.4 "Is this weird?" — SHIPPED 2026-08-17, same day it was conceived
+
+The §9.2-A idea, live: every forecast card now answers "should you care?" — today's forecast
+high/low as a percentile of ±7-day-window history at that exact point, 1940–2024 ERA5, one
+keyless call per location cached permanently (~162 KB gzipped, verified <2 s).
+
+Percentile math validated against real NYC history BEFORE the code was written (30 °C ≈ p84,
+33 °C ≈ p97, 35 °C ≈ p99 for mid-August — meteorologically sensible). Tier logic is quiet
+when normal and loud when notable, and on its FIRST live render it found a real headline:
+London's next overnight low at p100 — warmer than every one of 1,275 mid-August nights since
+1940. The warm-night tier (the health signal) fired exactly as designed while both normal
+cities stayed quiet.
+
+Contract: new `open-meteo-archive` entry (separate host, CORS * verified);
+`requiredAttributions()` now dedupes by display text so the two Open-Meteo endpoints carry
+one legal string. DB at v5 with a hardening worth the scar: the IndexedDB upgrade trap bit a
+SECOND time, through a new door — version bump and store creation were split across two
+sequential tool calls and the live HMR page consumed the upgrade in between. Store creation
+is now driven by a single manifest array, so the split cannot happen again and any
+half-upgraded DB heals on the next bump.
