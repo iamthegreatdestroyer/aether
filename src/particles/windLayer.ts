@@ -53,6 +53,19 @@ const PARAMS: EngineParams = {
 /** Below this measured fps, drop one quality step. Checked over 3-second windows. */
 const MIN_ACCEPTABLE_FPS = 40;
 
+/**
+ * Zoom legibility (owner screenshot, 2026-08-18). At world view a full-density field with
+ * long trails covers essentially every pixel and the basemap — coastlines, borders, city
+ * labels — vanishes underneath. Windy solves this by drawing sparse streaks over a coloured
+ * raster; we have no raster, so the field itself must thin out as the view widens. Buckets,
+ * not a per-frame ramp: changing particleCount reallocates GPU textures.
+ *   bucket 0: z < 3   world / continental — a hint of flow over a readable map
+ *   bucket 1: z 3–5   regional
+ *   bucket 2: z >= 5  local — unchanged from the tuning the spike measured
+ */
+const DENSITY_BY_ZOOM = [0.1, 0.4, 1] as const;
+const TRAIL_BY_ZOOM = [0.82, 0.91, 0.96] as const;
+
 export class WindLayer {
   private engine: WindEngine | null = null;
   private gl: WebGL2RenderingContext | null = null;
@@ -100,15 +113,30 @@ export class WindLayer {
     this.qualityIndex = coarse ? 2 : 1; // 250k on phones, 500k on desktop
     // Trails smear under camera motion; clearing at gesture start reads as intentional.
     map.on('movestart', () => this.engine?.clearTrails());
-    // Legibility at world scale: a million trails over the whole planet bury the basemap
-    // (desktop screenshot, 2026-08-18). Fade the CANVAS by zoom — 0.55 at z<=2.5 ramping to
-    // full by z5 — so the map reads through without touching the engine's physics.
-    const legibility = () => {
-      const z = map.getZoom();
-      this.canvas.style.opacity = String(Math.min(1, 0.55 + Math.max(0, z - 2.5) * 0.18));
-    };
-    map.on('zoom', legibility);
-    legibility();
+    map.on('zoom', () => this.applyStyle());
+  }
+
+  private zoomBucket = -1;
+
+  /**
+   * The single writer of engine params. Both inputs land here — the fps quality ladder and
+   * the zoom legibility bucket — because two callers writing setParams independently would
+   * overwrite each other's decision (adapt() steps down for heat; zoom thins for reading).
+   */
+  private applyStyle(force = false): void {
+    const z = this.map.getZoom();
+    // Canvas alpha ramps continuously: it is pure CSS, so it costs nothing per frame.
+    this.canvas.style.opacity = String(Math.min(1, 0.4 + Math.max(0, z - 2) * 0.2));
+    const bucket = z < 3 ? 0 : z < 5 ? 1 : 2;
+    if (!force && bucket === this.zoomBucket) return;
+    this.zoomBucket = bucket;
+    if (!this.engine) return;
+    const base = QUALITY_LADDER[this.qualityIndex] ?? 250_000;
+    this.engine.setParams({
+      ...PARAMS,
+      particleCount: Math.round(base * DENSITY_BY_ZOOM[bucket]!),
+      fadeOpacity: TRAIL_BY_ZOOM[bucket]!,
+    });
   }
 
   async start(): Promise<void> {
@@ -198,6 +226,7 @@ export class WindLayer {
       ...PARAMS,
       particleCount: QUALITY_LADDER[this.qualityIndex] ?? 250_000,
     });
+    this.applyStyle(true); // the view may already be at world zoom on cold boot
     this.resize(true);
   }
 
@@ -238,9 +267,10 @@ export class WindLayer {
 
     if (this.lastFps < MIN_ACCEPTABLE_FPS && this.qualityIndex < QUALITY_LADDER.length - 1) {
       this.qualityIndex++;
-      const count = QUALITY_LADDER[this.qualityIndex] ?? 50_000;
-      this.engine?.setParams({ ...PARAMS, particleCount: count });
-      console.info(`[wind] ${this.lastFps.toFixed(0)} fps — stepping down to ${count} particles`);
+      this.applyStyle(true); // recompute from the new ladder step AND the current zoom
+      console.info(
+        `[wind] ${this.lastFps.toFixed(0)} fps — stepping down to ladder ${this.qualityIndex}`,
+      );
     }
   }
 

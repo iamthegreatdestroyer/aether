@@ -46,6 +46,9 @@ jobs:
       # The contract must hold before a deploy — same guards as the daily probe.
       - run: node scripts/probe-sources.mjs --tier A
       - run: node scripts/gen-attribution.mjs --check
+      # The Tauri HTTP allowlist is derived from the same contract — a hand-edited scope is
+      # how the desktop build silently blocked 20 of 22 hosts after P6.
+      - run: node scripts/gen-capabilities.mjs --check
       # Tier B: refresh the wind texture from the latest GFS cycle. Pure-Python decoder —
       # no ecCodes, no apt-get, nothing tied to the runner image. `|| true` is deliberate:
       # a NOMADS outage must degrade to the committed last-known-good texture, not block

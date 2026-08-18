@@ -41,6 +41,7 @@ import { registerLayer } from './layers/registry';
 import { renderCard } from './ui/forecastCard';
 import type { CardState } from './ui/forecastCard';
 import { addLocation, loadLocations, locationKey, removeLocation, setHomeLocation } from './ui/locations';
+import { applyBasemapLegibility } from './ui/basemapLegibility';
 import type { SavedLocation } from './ui/locations';
 import { buildSourcesDialog, renderFooter } from './ui/attribution';
 import { WIND_LEVELS, WindLayer } from './particles/windLayer';
@@ -63,6 +64,28 @@ const nativeReady = initNativeTransport().then(async (native) => {
       import('./data/space'),
       import('./data/observations'),
     ]);
+    // FIRST: an ORDINARY source through the native transport. P6 armed the transport
+    // globally but scoped the capability to the two A-native hosts, so every normal fetch
+    // answered "url not allowed on the configured scope" — the desktop app showed errors on
+    // every card while this self-check, which only exercised the two allowed hosts, passed.
+    // A self-check that only tests the special path certifies the special path, not the app.
+    const { fetchJson } = await import('./data/fetcher');
+    const { source } = await import('./data/sources.mjs');
+    let ordinary: string;
+    try {
+      const u = new URL(source('open-meteo').baseUrl!);
+      u.searchParams.set('latitude', '40.71');
+      u.searchParams.set('longitude', '-74.01');
+      u.searchParams.set('current', 'temperature_2m');
+      const d = await fetchJson<{ current: { temperature_2m: number } }>(
+        'open-meteo',
+        u.toString(),
+      );
+      ordinary = `ok ${d.current.temperature_2m}C`;
+    } catch (err) {
+      ordinary = `FAILED: ${err instanceof Error ? err.message : String(err)}`;
+    }
+
     const kp = await fetchKpSeries();
     // The second cheque: London sits outside NWS coverage, so its ledger truth depends on
     // this exact path. captureMetar only reads — the obs store is untouched by a self-check.
@@ -76,6 +99,7 @@ const nativeReady = initNativeTransport().then(async (native) => {
       payload: JSON.stringify({
         at: new Date().toISOString(),
         nativeTransport: true,
+        ordinarySource: ordinary,
         kpSource: kp.sourceLabel,
         kpOfficial: kp.official,
         kpLatest: kp.readings[kp.readings.length - 1] ?? null,
@@ -559,6 +583,7 @@ function whenStyleReady(fn: () => void): void {
   else map.once('style.load', fn);
 }
 whenStyleReady(() => {
+  applyBasemapLegibility(map);
   if (localStorage.getItem(RADAR_PREF) !== 'off') void setRadar(true);
   if (localStorage.getItem(SAT_PREF) === 'on') setSat(true);
 });

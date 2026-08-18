@@ -869,3 +869,43 @@ on resize — so one world always exactly fills the viewport and wrapping is str
 impossible; (2) the wind CANVAS fades by zoom (0.55 at ≤z2.5 → 1.0 by z5), so the map reads
 through at world scale without touching engine physics. Verified: world px ≥ viewport at
 the floor, opacity ramp live.
+
+### 11.3 The desktop was broken since P6 — and two screenshots found it (2026-08-18)
+
+**The bug.** P6 armed `tauri-plugin-http` GLOBALLY (every `fetchJson` routes through Rust
+once the transport initialises) but hand-wrote a TWO-ENTRY capability allowlist for the two
+CORS-blocked hosts it was added for. So in the desktop build, 20 of 22 contract hosts
+answered `url not allowed on the configured scope` — every forecast card, every layer index.
+The MSI shipped that way ~8 times today.
+
+**Why the guards missed it.** The self-check exercised only the two allowed hosts, so it
+passed while the app was unusable. *A self-check that only tests the special path certifies
+the special path, not the app.* The web regression check passed too — the transport is null
+in the browser, so the PWA was always fine. Nothing in CI models the desktop's HTTP scope.
+
+**The fixes** (all three, because the class of failure matters more than the instance):
+1. `scripts/gen-capabilities.mjs` derives the allowlist FROM the contract (23 hosts) —
+   the same generated-not-maintained pattern as `ATTRIBUTION.md`. CI runs `--check`.
+2. The native self-check now fetches an ORDINARY source first (`ordinarySource: "ok 29.1C"`
+   on the fixed build) — the assertion that would have caught this on day one.
+3. Documented here so the next global-transport-with-scoped-permission arrives pre-warned.
+
+### 11.4 Legibility: the map you cannot read is not a map
+
+The same screenshots showed the basemap invisible even where particles were sparse. Measured
+from the live style: land `rgb(12,12,12)` vs water `rgb(27,27,29)` — 15 values apart, so
+continents and oceans were the same black; country borders `hsl(0,0%,23%)`; labels 40% grey.
+The P1 "dark style" call (particles at ~7% coverage vanish on a light basemap) was right but
+overshot into a black canvas.
+
+- `src/ui/basemapLegibility.ts`: a paint-property pass at `style.load` — land lifted to
+  `rgb(26,28,32)`, water dropped to a true `rgb(9,13,24)` navy (separated in BOTH value and
+  hue), borders `hsl(205,22%,52%)`, labels `rgb(196,205,220)` with a 1.6 halo so they
+  survive under the overlay. Data + one loop, not a forked style: OpenFreeMap ships updates,
+  and a fork would freeze them. Missing layers are skipped, never thrown.
+- Particle field now thins with zoom (`applyStyle` is the single writer of engine params, so
+  the fps ladder and the zoom bucket compose instead of overwriting each other): density
+  10%/40%/100% and trail persistence 0.82/0.91/0.96 across z<3 / z3-5 / z≥5, plus a
+  continuous canvas-alpha ramp from 0.4.
+- Measured with `windStep`'s pixel coverage at world zoom: **47.5% → 28.9%** lit fraction
+  after tuning (and the pre-fix build was effectively saturated).
