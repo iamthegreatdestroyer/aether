@@ -79,14 +79,19 @@ async function probe(src) {
 
     // A 200 is not proof of data. SondeHub answers 200 with a plain-text usage error for a
     // malformed `duration`; status-only probing called that healthy for a whole afternoon.
-    if (src.minBytes != null && buf.byteLength < src.minBytes) {
+    // But content guards only apply to SUCCESS responses: a tolerated non-2xx (donki's
+    // rate-limit 429, firms-api's deliberate invalid-key 400) legitimately has a tiny error
+    // body, and judging it by success-body rules manufactures false drift (found 2026-08-18
+    // when local DONKI quota ran out mid-verification).
+    const isSuccess = res.status >= 200 && res.status < 300;
+    if (isSuccess && src.minBytes != null && buf.byteLength < src.minBytes) {
       problems.push(
         `body is ${buf.byteLength}B, contract expects >= ${src.minBytes}B — ` +
           `likely a soft error returned with HTTP 200`,
       );
     }
 
-    if (src.mustNotContain) {
+    if (isSuccess && src.mustNotContain) {
       const head = new TextDecoder('utf-8', { fatal: false }).decode(buf.slice(0, 2048));
       if (head.includes(src.mustNotContain)) {
         problems.push(`body contains forbidden marker "${src.mustNotContain}"`);
