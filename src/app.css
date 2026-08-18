@@ -99,6 +99,17 @@ html, body {
 .aurora-none { color: var(--muted); }
 .delta-big { color: var(--warn); }
 
+/* ---- storm ledger ---- */
+.storm-dialog { max-width: 620px; }
+.storm-class { font-size: 11px; color: var(--muted); font-weight: 400; }
+.storm-units { font-size: 10px; margin: 4px 0 8px; }
+.storm-note { font-size: 10px; color: var(--muted); margin: 8px 0 0; }
+.storm-show {
+  background: var(--panel); color: var(--accent); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.storm-show:hover { border-color: var(--accent); }
+
 /* ---- radar timeline ---- */
 #timeline {
   position: absolute;

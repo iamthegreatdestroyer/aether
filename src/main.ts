@@ -27,6 +27,8 @@ import { runScorer, summarize } from './data/scorer';
 import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
 import { isThisWeird } from './data/climatology';
+import { buildStormDialog, loadStormLedger, renderStorms, showStormOnMap } from './ui/stormPanel';
+import type { StormLedger } from './ui/stormPanel';
 import { fetchOvation, sampleAurora } from './data/space';
 import { balloonTruth } from './data/sondes';
 import { registerLayer } from './layers/registry';
@@ -374,6 +376,18 @@ document.getElementById('receipts-toggle')!.addEventListener('click', () => {
   void renderReceipts(receiptsDialog, locations).then(() => receiptsDialog.showModal());
 });
 
+let stormLedger: StormLedger | null = null;
+const stormDialog = buildStormDialog();
+document.getElementById('storms-toggle')!.addEventListener('click', () => {
+  stormDialog.showModal();
+  void loadStormLedger().then((ledger) => {
+    stormLedger = ledger;
+    renderStorms(stormDialog, ledger, (i) => {
+      if (stormLedger) showStormOnMap(map, stormLedger, i);
+    });
+  });
+});
+
 const spaceDialog = buildSpaceDialog();
 document.getElementById('space-toggle')!.addEventListener('click', () => {
   spaceDialog.showModal(); // open immediately with the loading state…
@@ -428,6 +442,7 @@ if ('serviceWorker' in navigator) {
       c.data.daily.temperature_2m_min[0]!,
     );
   },
+  storms: () => loadStormLedger(),
   /** Headless render proof — see WindLayer.debugStep. */
   windStep: (n?: number) => windLayer.debugStep(n),
   radar: () => radar.state,

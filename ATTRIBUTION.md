@@ -7,7 +7,7 @@ Every string below must be displayed in the app on the **Data Sources** screen.
 These obligations are **not** waived by the personal-use scope — CC BY attaches to display
 of the data itself, regardless of whether the software is ever distributed.
 
-11 sources require attribution; 13 do not.
+11 sources require attribution; 14 do not.
 
 ## Required
 
@@ -41,6 +41,7 @@ Displayed anyway as provenance — the Data Sources screen is part of the trust 
 - **NOAA OVATION aurora** — Public domain
 - **aviationweather.gov (AWC)** — Public domain
 - **CelesTrak GP element sets** — Free; no formal attribution
+- **NOAA NHC/CPHC ATCF** — US Government work — public domain
 - **NOAA NOMADS GFS filter** — Public domain
 
 ## Standing obligations that are not just a string

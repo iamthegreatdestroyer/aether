@@ -551,3 +551,20 @@ SECOND time, through a new door — version bump and store creation were split a
 sequential tool calls and the live HMR page consumed the upgrade in between. Store creation
 is now driven by a single manifest array, so the split cannot happen again and any
 half-upgraded DB heals on the next bump.
+
+### 9.5 The storm ledger — SHIPPED 2026-08-17, while Lala is still active
+
+§9.2-B, built: *Who Was Right?* pointed at a live storm. Tier B fetches NHC/CPHC's public
+ATCF decks each 6-hour advisory cycle — best track as truth, every public early aid as the
+forecasts — scores track error per model per lead, and ships a 10 KB ledger. The client
+renders the ranked table (n on every cell), the plain sentence, and draws the un-drawn diff:
+observed track solid, latest official forecast dashed, same frame.
+
+First real result, 22 advisories into Lala: **the human forecasters are winning by 2× —
+Official 74 km mean 24–72 h track error vs Consensus 148, HAFS ~164, GFS 166, CMC 181, and
+UKMET 223** — three times the official error, and UKMET is one of the three model chips the
+incumbent displays without scores. ECMWF is absent from NOAA's public a-decks (licensed);
+the ledger states this in its output rather than scoring a quietly diminished field.
+
+NHC sends no CORS header (verified), so the mirror-to-Pages pattern was the design anyway —
+same cadence, same degrade-to-snapshot rule as the wind texture.

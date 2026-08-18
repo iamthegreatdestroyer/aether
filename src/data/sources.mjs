@@ -417,6 +417,27 @@ export const SOURCES = [
     verifiedAt: '2026-08-16',
   },
 
+  {
+    id: 'nhc-storms',
+    name: 'NOAA NHC/CPHC ATCF',
+    role: 'Storm ledger — active storms, best tracks (truth), public model aids (forecasts)',
+    baseUrl: 'https://www.nhc.noaa.gov',
+    probeUrl: 'https://www.nhc.noaa.gov/CurrentStorms.json',
+    tier: 'B',
+    cors: 'none',
+    expectStatus: [200],
+    minBytes: 20,
+    license: 'US Government work — public domain',
+    attribution: null,
+    rateLimit: 'advisories update 6-hourly; the cron matches that cadence',
+    notes:
+      'No CORS header (verified 2026-08-17) — Tier B mirrors to data/storms/ledger.json, the ' +
+      'client reads same-origin. Decks at ftp.nhc.noaa.gov/atcf/{btk,aid_public}. ECMWF ' +
+      'tracks are NOT in the public a-decks (licensed) — the ledger says so rather than ' +
+      'scoring a quietly diminished field.',
+    verifiedAt: '2026-08-17',
+  },
+
   // ---------------------------------------------------------------- basemap
   {
     id: 'openfreemap',

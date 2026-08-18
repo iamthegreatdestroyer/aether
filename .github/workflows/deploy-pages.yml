@@ -55,6 +55,8 @@ jobs:
           python-version: '3.12'
       - run: pip install numpy pillow
       - run: python scripts/build_wind_texture.py || echo "::warning::texture refresh failed — deploying last-known-good"
+      # Storm ledger: same 6-hour cadence as NHC advisories, same degrade-to-snapshot rule.
+      - run: python scripts/build_storm_ledger.py || echo "::warning::storm ledger refresh failed — deploying last-known-good"
       - run: pnpm build
       - uses: actions/upload-pages-artifact@v3
         with:
