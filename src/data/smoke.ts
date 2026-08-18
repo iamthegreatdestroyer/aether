@@ -1,0 +1,209 @@
+/**
+ * The Smoke Story (proposal §4.1.3) — composed ENTIRELY from lanes the app already ships:
+ *
+ *   fires   FIRMS VIIRS clusters via the Tier B cron (FIRMS sends no CORS header — measured
+ *           — so the browser reads our same-origin thinned GeoJSON, stamped with its age).
+ *   wind    the surface wind texture the particle layer already uses: sample it AT each
+ *           fire and ray-test whether the wind there points toward the location.
+ *   PM2.5   Sensor.Community citizen stations — the measured ground truth that keeps the
+ *           ray test honest.
+ *
+ * The verdict is deliberately labelled a surface-wind ray test, not a plume model: no
+ * HYSPLIT pretensions. Wind aloft differs, terrain channels smoke, inversions trap it.
+ * The test answers one question honestly: "is anything upwind of me burning?"
+ */
+
+import { fetchJson } from './fetcher';
+import { source } from './sources.mjs';
+import { bearingDeg, haversineKm } from './geo';
+import { locationKey } from '../ui/locations';
+import type { SavedLocation } from '../ui/locations';
+
+export interface FireCluster {
+  lat: number;
+  lon: number;
+  n: number;
+  frp: number;
+}
+
+export interface FireData {
+  clusters: FireCluster[];
+  builtAt: string;
+  source: string;
+  detections: number;
+}
+
+interface FireGeoJson {
+  features: Array<{ geometry: { coordinates: [number, number] }; properties: { n: number; frp: number } }>;
+  builtAt: string;
+  source: string;
+  detections: number;
+}
+
+let fireCache: FireData | null = null;
+
+export async function loadFires(): Promise<FireData> {
+  if (fireCache) return fireCache;
+  const r = await fetch('data/fires/latest.json');
+  if (!r.ok) throw new Error('fire clusters not built yet — the 6-hourly cron fills them in');
+  const g = (await r.json()) as FireGeoJson;
+  fireCache = {
+    clusters: g.features.map((f) => ({
+      lon: f.geometry.coordinates[0],
+      lat: f.geometry.coordinates[1],
+      n: f.properties.n,
+      frp: f.properties.frp,
+    })),
+    builtAt: g.builtAt,
+    source: g.source,
+    detections: g.detections,
+  };
+  return fireCache;
+}
+
+// ------------------------------------------------- surface wind sampler (CPU)
+
+/** Minimal standalone sampler over the SAME artifacts the particle engine renders. */
+interface WindGrid {
+  pixels: Uint8ClampedArray;
+  width: number;
+  height: number;
+  uMin: number;
+  uMax: number;
+  vMin: number;
+  vMax: number;
+  validTime: string;
+}
+
+let windGrid: WindGrid | null = null;
+
+async function loadWindGrid(): Promise<WindGrid> {
+  if (windGrid) return windGrid;
+  const meta = await fetch('data/wind/latest.json').then((r) => {
+    if (!r.ok) throw new Error('wind sidecar missing');
+    return r.json() as Promise<{ width: number; height: number; uMin: number; uMax: number; vMin: number; vMax: number; validTime: string }>;
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error('wind texture missing'));
+    i.src = 'data/wind/latest.png';
+  });
+  const c = document.createElement('canvas');
+  c.width = meta.width;
+  c.height = meta.height;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0);
+  windGrid = { pixels: ctx.getImageData(0, 0, meta.width, meta.height).data, ...meta };
+  return windGrid;
+}
+
+/** u/v (m/s) at a point — nearest texel; the grid is ~1°, bilinear would be theater. */
+function sampleUv(g: WindGrid, lat: number, lon: number): { u: number; v: number } {
+  const x = Math.min(g.width - 1, Math.max(0, Math.round(((lon + 180) / 360) * (g.width - 1))));
+  const y = Math.min(g.height - 1, Math.max(0, Math.round(((90 - lat) / 180) * (g.height - 1))));
+  const i = (y * g.width + x) * 4;
+  const u = (g.pixels[i]! / 255) * (g.uMax - g.uMin) + g.uMin;
+  const v = (g.pixels[i + 1]! / 255) * (g.vMax - g.vMin) + g.vMin;
+  return { u, v };
+}
+
+// ------------------------------------------------------------- PM2.5 truth
+
+/** Median PM2.5 (µg/m³) from citizen stations in a ~10 km box; null under 3 stations. */
+export async function fetchPm25(
+  loc: SavedLocation,
+): Promise<{ pm25: number; stations: number } | null> {
+  const base = source('sensor-community').baseUrl;
+  const d = 0.08;
+  const box = `${(loc.lat - d).toFixed(3)},${(loc.lon - d).toFixed(3)},${(loc.lat + d).toFixed(3)},${(loc.lon + d).toFixed(3)}`;
+  const records = await fetchJson<
+    Array<{ sensordatavalues: Array<{ value_type: string; value: string }> }>
+  >('sensor-community', `${base}/box=${box}`);
+  const vals: number[] = [];
+  for (const rec of records) {
+    for (const v of rec.sensordatavalues) {
+      if (v.value_type === 'P2') {
+        const x = Number(v.value);
+        if (Number.isFinite(x) && x >= 0 && x < 1000) vals.push(x);
+      }
+    }
+  }
+  if (vals.length < 3) return null;
+  vals.sort((a, b) => a - b);
+  return { pm25: vals[Math.floor(vals.length / 2)]!, stations: vals.length };
+}
+
+// ------------------------------------------------------------- the assessment
+
+export interface FireThreat {
+  distanceKm: number;
+  bearingFromYou: number;
+  frp: number;
+  n: number;
+  /** Angle between wind direction AT the fire and the fire→you bearing. */
+  offAxisDeg: number;
+  windAtFireMs: number;
+  verdict: 'toward' | 'glancing' | 'away';
+}
+
+export interface SmokeAssessment {
+  locationKey: string;
+  firesWithinKm: number;
+  radiusKm: number;
+  top: FireThreat[];
+  anyToward: boolean;
+  windValidTime: string;
+  firesBuiltAt: string;
+  pm: { pm25: number; stations: number } | null;
+}
+
+const RADIUS_KM = 400;
+
+export async function assessSmoke(loc: SavedLocation): Promise<SmokeAssessment> {
+  const [fires, grid, pm] = await Promise.all([
+    loadFires(),
+    loadWindGrid(),
+    fetchPm25(loc).catch(() => null),
+  ]);
+
+  const near = fires.clusters
+    .map((c) => ({ c, distanceKm: haversineKm(loc.lat, loc.lon, c.lat, c.lon) }))
+    .filter((x) => x.distanceKm <= RADIUS_KM)
+    .sort((a, b) => b.c.frp - a.c.frp);
+
+  const top: FireThreat[] = near.slice(0, 10).map(({ c, distanceKm }) => {
+    const { u, v } = sampleUv(grid, c.lat, c.lon);
+    const windTowardDeg = ((Math.atan2(u, v) * 180) / Math.PI + 360) % 360;
+    const fireToYou = bearingDeg(c.lat, c.lon, loc.lat, loc.lon);
+    let off = Math.abs(windTowardDeg - fireToYou);
+    if (off > 180) off = 360 - off;
+    const verdict: FireThreat['verdict'] = off <= 35 ? 'toward' : off <= 70 ? 'glancing' : 'away';
+    return {
+      distanceKm: Math.round(distanceKm),
+      bearingFromYou: bearingDeg(loc.lat, loc.lon, c.lat, c.lon),
+      frp: c.frp,
+      n: c.n,
+      offAxisDeg: Math.round(off),
+      windAtFireMs: Math.round(Math.hypot(u, v) * 10) / 10,
+      verdict,
+    };
+  });
+
+  return {
+    locationKey: locationKey(loc),
+    firesWithinKm: near.length,
+    radiusKm: RADIUS_KM,
+    top: top.slice(0, 3),
+    anyToward: top.some((t) => t.verdict === 'toward'),
+    windValidTime: grid.validTime,
+    firesBuiltAt: fires.builtAt,
+    pm,
+  };
+}
+
+/** Compass name for a bearing — the panel speaks human, not degrees-only. */
+export function compass(deg: number): string {
+  const names = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  return names[Math.round(((deg % 360) / 22.5)) % 16]!;
+}

@@ -416,6 +416,27 @@ export const SOURCES = [
     verifiedAt: '2026-08-18',
   },
   {
+    id: 'firms',
+    name: 'NASA FIRMS active fires (VIIRS)',
+    role: 'Smoke Story fire layer — 24 h VIIRS detections, thinned by the Tier B cron',
+    probeUrl:
+      'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_USA_contiguous_and_Hawaii_24h.csv',
+    tier: 'B',
+    cors: 'none',
+    expectStatus: [200],
+    minBytes: 200,
+    mustNotContain: '<html',
+    license: 'NASA data — free, attribution requested',
+    attribution: 'NASA FIRMS',
+    rateLimit: 'keyless data dir; one global CSV per cron run',
+    notes:
+      'MEASURED 2026-08-18: keyless CSVs, no Access-Control-Allow-Origin header, global ' +
+      '24 h file 8.8 MB — hence Tier B: scripts/build_fire_clusters.py bins detections to ' +
+      '0.25 deg clusters as same-origin GeoJSON. The MAP_KEY api exists for live queries; ' +
+      'a possible future third native cheque, not needed for the story.',
+    verifiedAt: '2026-08-18',
+  },
+  {
     id: 'sensor-community',
     name: 'Sensor.Community',
     role: 'Hyperlocal obs + PM for Smoke Story and the ledger',

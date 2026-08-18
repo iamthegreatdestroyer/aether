@@ -26,6 +26,8 @@ import { captureObservations } from './data/observations';
 import { runScorer, summarize } from './data/scorer';
 import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
+import { buildSmokeDialog, renderSmoke } from './ui/smokePanel';
+import { FiresLayer } from './layers/fires';
 import { isThisWeird } from './data/climatology';
 import { fetchHonesty } from './data/ensemble';
 import { buildConeDialog, renderCone } from './ui/coneDialog';
@@ -533,6 +535,18 @@ document.getElementById('storms-toggle')!.addEventListener('click', () => {
     renderStorms(stormDialog, ledger, (i) => {
       if (stormLedger) showStormOnMap(map, stormLedger, i);
     });
+  });
+});
+
+const firesLayer = new FiresLayer(map);
+const smokeDialog = buildSmokeDialog();
+const smokeToggle = document.getElementById('smoke-toggle') as HTMLButtonElement;
+smokeToggle.addEventListener('click', () => {
+  smokeDialog.showModal();
+  void renderSmoke(smokeDialog, locations, firesLayer.isEnabled, () => {
+    if (firesLayer.isEnabled) firesLayer.disable();
+    else void firesLayer.enable().catch((err) => console.warn('[fires]', err));
+    smokeToggle.classList.toggle('is-on', firesLayer.isEnabled);
   });
 });
 

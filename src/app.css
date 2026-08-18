@@ -405,3 +405,18 @@ html, body {
 #wind-levels { display: inline-flex; gap: 2px; margin-left: 4px; }
 #wind-levels button { font-size: 10px; padding: 2px 6px; opacity: 0.75; }
 #wind-levels button.is-on { opacity: 1; outline: 1px solid var(--accent, #6ea8fe); }
+
+/* Smoke story */
+.smoke-verdict { margin: 0.2rem 0 0.4rem; font-size: 0.86rem; }
+.smoke-clear { color: #4ade80; }
+.smoke-warn { color: #ff9a3c; font-weight: 600; }
+.smoke-toward { color: #ff9a3c; font-weight: 600; }
+.smoke-glancing { color: var(--warn, #eab308); }
+.smoke-away { color: var(--muted, #8a93a6); }
+.smoke-pm { font-size: 0.82rem; margin: 0.3rem 0 0.6rem; }
+.pm-good { color: #4ade80; }
+.pm-mod { color: #eab308; }
+.pm-usg { color: #ff9a3c; }
+.pm-bad { color: #e01e1e; }
+.smoke-honesty { font-size: 0.74rem; color: var(--muted, #8a93a6); margin-top: 0.8rem; }
+.smoke-fires-btn { font-size: 0.8rem; margin-bottom: 0.5rem; }

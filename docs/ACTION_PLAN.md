@@ -708,3 +708,25 @@ artifacts and old clients stay valid; levels are data/wind/{850,500,250}.{png,js
 - Picker cross-checked at 250 hPa against Open-Meteo GFS south of NZ (winter jet):
   37.8 m/s @ 172° vs 40.9 @ 173° — direction within 1°, speed within the known
   decimation+quantization cost.
+
+### 10.4 Smoke Story — SHIPPED 2026-08-18. Composed, not collected.
+
+The proposal's §4.1.3, built without a single new heavy dependency — every plane was already
+in the stack, which is the point of the story:
+
+- **fires**: FIRMS keyless CSVs measured CORS-closed (global 24 h file 8.8 MB) → Tier B:
+  `build_fire_clusters.py` bins VIIRS detections to 0.25° clusters as same-origin GeoJSON
+  (first live run: 108,624 detections → 11,693 clusters, 1.28 MB raw, ~300 KB gzipped,
+  loaded only on toggle). HRRR-Smoke stays out: CONUS-only Lambert grid, and the ray test
+  answers the personal question without a plume model's false authority.
+- **wind**: the surface texture the particle layer already ships, sampled AT each fire —
+  a ray test ("is the wind there pointed at me?"), labelled as exactly that in the panel
+  footer, never as dispersion modelling.
+- **PM2.5**: Sensor.Community medians (≥3 stations) — the measured truth that keeps the
+  ray test honest. The contract entry's role line promised this pairing at P0.
+
+Panel per location: verdict line, top-3 fires by FRP with distance/bearing/off-axis angle,
+PM2.5 with EPA-band colouring; 🔥 map layer (dots sized by detections, coloured by FRP)
+behind the registry door as source `firms`. Verified live: NYC 2 clusters/none toward;
+London 11 (August grass fires)/none toward, PM2.5 2 µg/m³ across 11 sensors agreeing;
+Tokyo 6/none toward. Clean error log through panel + layer cycle.
