@@ -54,11 +54,20 @@ const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const nativeReady = initNativeTransport().then(async (native) => {
   if (!native) return false;
   try {
-    const [{ invoke }, { fetchKpSeries }] = await Promise.all([
+    const [{ invoke }, { fetchKpSeries }, { captureMetar }] = await Promise.all([
       import('@tauri-apps/api/core'),
       import('./data/space'),
+      import('./data/observations'),
     ]);
     const kp = await fetchKpSeries();
+    // The second cheque: London sits outside NWS coverage, so its ledger truth depends on
+    // this exact path. captureMetar only reads — the obs store is untouched by a self-check.
+    const london = { id: 'native-check', name: 'London', lat: 51.5072, lon: -0.1276 };
+    const metarObs = await captureMetar(
+      london,
+      new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+    ).catch(() => []);
+    const latestObs = [...metarObs].sort((a, b) => a.hour.localeCompare(b.hour)).pop() ?? null;
     await invoke('report', {
       payload: JSON.stringify({
         at: new Date().toISOString(),
@@ -66,6 +75,11 @@ const nativeReady = initNativeTransport().then(async (native) => {
         kpSource: kp.sourceLabel,
         kpOfficial: kp.official,
         kpLatest: kp.readings[kp.readings.length - 1] ?? null,
+        metarStation: latestObs?.station ?? null,
+        metarHours: metarObs.length,
+        metarLatest: latestObs
+          ? { hour: latestObs.hour, temperatureC: latestObs.temperatureC, windSpeedMs: latestObs.windSpeedMs }
+          : null,
       }),
     });
   } catch (err) {
@@ -502,8 +516,18 @@ refreshAll();
 setInterval(refreshAll, REFRESH_INTERVAL_MS);
 
 if ('serviceWorker' in navigator) {
-  // Relative path on purpose: resolves correctly at "/" locally and under "/<repo>/" on Pages.
-  void navigator.serviceWorker.register('sw.js');
+  if ('__TAURI_INTERNALS__' in window) {
+    // Under the desktop shell the assets ship INSIDE the exe — a service worker adds zero
+    // offline value and inserts a stale-serving layer between app updates and the webview.
+    // Found the hard way (2026-08-18): a P6-era SW kept serving the previous bundle after a
+    // rebuild. Unregister heals installs that ran an SW-registering build.
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then((rs) => Promise.all(rs.map((r) => r.unregister())));
+  } else {
+    // Relative path on purpose: resolves correctly at "/" locally and under "/<repo>/" on Pages.
+    void navigator.serviceWorker.register('sw.js');
+  }
 }
 
 // Debug hook, same convention as the spike's __spike: lets the boot be verified headlessly.

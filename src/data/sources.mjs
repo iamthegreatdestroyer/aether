@@ -412,6 +412,7 @@ export const SOURCES = [
     id: 'aviationweather',
     name: 'aviationweather.gov (AWC)',
     role: 'METAR/TAF — the ledger\'s observation truth side',
+    baseUrl: 'https://aviationweather.gov/api/data',
     probeUrl: 'https://aviationweather.gov/api/data/metar?ids=KJFK&format=json',
     tier: 'A-native',
     cors: 'none',
@@ -421,9 +422,10 @@ export const SOURCES = [
     rateLimit: 'fair use',
     notes:
       'CONFIRMED no Access-Control-Allow-Origin header (2026-08-16) — matches the proposal. ' +
-      'This is on the P3 critical path because the verification ledger scores against METARs. ' +
-      'Resolve the proxy-vs-native decision at P3 START, not P3 end.',
-    verifiedAt: '2026-08-16',
+      'RESOLVED native (P6): the desktop shell reaches it via tauri-plugin-http; the PWA ' +
+      'falls through to Sensor.Community. bbox+hours pattern verified 2026-08-18 — reports ' +
+      'carry their own lat/lon, so nearest-station resolution needs no station directory.',
+    verifiedAt: '2026-08-18',
   },
   {
     id: 'celestrak',

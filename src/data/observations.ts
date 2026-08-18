@@ -1,19 +1,24 @@
 /**
  * Observations — the truth side of the verification ledger.
  *
- * A forecast receipt is worthless without something real to score it against, and the
- * proposal's first-choice obs source (aviationweather.gov METARs) sends no CORS header — a
- * Tauri-native upgrade, not a PWA option. What IS browser-reachable, verified live:
+ * A forecast receipt is worthless without something real to score it against. The chain,
+ * in order:
  *
  *   nws-obs           US: real station observations WITH HISTORY (points → stations →
  *                     /observations?start=…). Public domain, CORS *. Can backfill hours the
- *                     app was closed for.
- *   sensor-community  Global: citizen stations, CURRENT values only — so capture is
- *                     opportunistic: each refresh stores "now" as truth for this hour, and
- *                     only hours the app was open for become scorable. Median across
- *                     stations in a ~10 km box blunts individual bad sensors.
+ *                     app was closed for. Stays first for US locations so an established
+ *                     ledger (KNYC for NYC) never silently switches truth source.
+ *   metar             GLOBAL station history — aviationweather.gov, the proposal's
+ *                     first-choice truth. No CORS header, so this is the contract's second
+ *                     A-native cheque: it only runs under the desktop shell's Rust-side
+ *                     transport (P6). One bbox query returns every nearby airport's reports
+ *                     WITH their coordinates, so station resolution is a haversine over the
+ *                     response — no station directory needed (verified 2026-08-18).
+ *   sensor-community  Global PWA fallback: citizen stations, CURRENT values only — capture
+ *                     is opportunistic: each refresh stores "now" as truth for this hour.
+ *                     Median across stations in a ~10 km box blunts individual bad sensors.
  *
- * Locations covered by neither say so, plainly. An unverifiable location marked
+ * Locations covered by none of these say so, plainly. An unverifiable location marked
  * "unverifiable" is honest; one silently scored against a reanalysis would be theater.
  *
  * Captured obs land in the `obs` store keyed `${locationKey}|${isoHour}` — idempotent per
@@ -21,7 +26,8 @@
  */
 
 import { STORE_OBS, dbGetAllByIndex, dbPut } from './db';
-import { fetchJson } from './fetcher';
+import { fetchJson, hasNativeTransport } from './fetcher';
+import { haversineKm } from './geo';
 import { source } from './sources.mjs';
 import { locationKey } from '../ui/locations';
 import type { SavedLocation } from '../ui/locations';
@@ -34,7 +40,7 @@ export interface Observation {
   observedAt: string;
   temperatureC: number;
   windSpeedMs: number | null;
-  provider: 'nws-obs' | 'sensor-community';
+  provider: 'nws-obs' | 'metar' | 'sensor-community';
   /** Station id / sensor count — provenance for the receipts UI. */
   station: string;
 }
@@ -128,6 +134,78 @@ async function captureNws(loc: SavedLocation, sinceIso: string): Promise<Observa
   return [...byHour.values()];
 }
 
+// -------------------------------------------- METAR (global, desktop-native)
+
+interface MetarReport {
+  icaoId: string;
+  lat: number;
+  lon: number;
+  temp: number | null;
+  wspd: number | null; // knots
+  obsTime: number | null; // epoch seconds
+  reportTime: string | null;
+}
+
+const metarStationKey = (lk: string) => `aether.metarstation.${lk}`;
+
+/**
+ * METAR backfill — exported so the desktop self-check can cash the cheque end-to-end
+ * without touching the obs store (this function only reads; persistence happens in
+ * captureObservations). Verified live 2026-08-18: the London box returns EGLL/EGLC/EGWU/…
+ * at 20-minute cadence with per-report coordinates; Tokyo returns the RJT* cluster.
+ */
+export async function captureMetar(loc: SavedLocation, sinceIso: string): Promise<Observation[]> {
+  if (!hasNativeTransport()) return [];
+  const lk = locationKey(loc);
+  const hours = Math.min(48, Math.max(1, Math.ceil((Date.now() - Date.parse(sinceIso)) / 3_600_000)));
+  const d = 0.7; // ~50-78 km box — wide enough for the nearest airports, not a region dump
+  const base = source('aviationweather').baseUrl;
+  const u =
+    `${base}/metar?bbox=${(loc.lat - d).toFixed(2)},${(loc.lon - d).toFixed(2)},` +
+    `${(loc.lat + d).toFixed(2)},${(loc.lon + d).toFixed(2)}&format=json&hours=${hours}`;
+  const reports = await fetchJson<MetarReport[]>('aviationweather', u);
+
+  // Nearest station that actually reports temperature wins; its history is the series.
+  let bestId: string | null = null;
+  let bestKm = Infinity;
+  for (const r of reports) {
+    if (typeof r.temp !== 'number') continue;
+    const km = haversineKm(loc.lat, loc.lon, r.lat, r.lon);
+    if (km < bestKm) {
+      bestKm = km;
+      bestId = r.icaoId;
+    }
+  }
+  if (!bestId) return [];
+  localStorage.setItem(
+    metarStationKey(lk),
+    JSON.stringify({ stationId: bestId, distanceKm: Math.round(bestKm) }),
+  );
+
+  // One observation per hour, closest to the top of the hour — same rule as NWS.
+  const byHour = new Map<string, Observation>();
+  for (const r of reports) {
+    if (r.icaoId !== bestId || typeof r.temp !== 'number') continue;
+    const t =
+      r.obsTime !== null ? new Date(r.obsTime * 1000) : r.reportTime ? new Date(r.reportTime) : null;
+    if (!t || Number.isNaN(t.getTime())) continue;
+    const candidate: Observation = {
+      locationKey: lk,
+      hour: isoHour(t),
+      observedAt: t.toISOString(),
+      temperatureC: r.temp,
+      windSpeedMs: typeof r.wspd === 'number' ? Math.round(r.wspd * 51.4444) / 100 : null,
+      provider: 'metar',
+      station: `${bestId} · ${Math.round(bestKm)} km`,
+    };
+    const existing = byHour.get(candidate.hour);
+    const dist = (o: Observation) =>
+      Math.abs(new Date(o.observedAt).getTime() - new Date(o.hour).getTime());
+    if (!existing || dist(candidate) < dist(existing)) byHour.set(candidate.hour, candidate);
+  }
+  return [...byHour.values()];
+}
+
 // ------------------------------------------------- Sensor.Community (global)
 
 /** Current conditions from citizen stations in a ~±0.08° box; median temperature. */
@@ -186,7 +264,14 @@ export async function captureObservations(loc: SavedLocation): Promise<Observati
   try {
     captured = await captureNws(loc, since);
   } catch {
-    /* fall through to Sensor.Community */
+    /* fall through */
+  }
+  if (captured.length === 0) {
+    try {
+      captured = await captureMetar(loc, since); // no-op in the PWA (native-only)
+    } catch {
+      /* fall through */
+    }
   }
   if (captured.length === 0) {
     try {
@@ -211,6 +296,11 @@ export function obsProviderLabel(lk: string): string {
   const cached = localStorage.getItem(stationCacheKey(lk));
   if (cached && cached !== 'none') {
     return `NWS station ${(JSON.parse(cached) as NwsStationCache).stationId}`;
+  }
+  const metar = localStorage.getItem(metarStationKey(lk));
+  if (metar) {
+    const m = JSON.parse(metar) as { stationId: string; distanceKm: number };
+    return `METAR ${m.stationId} · ${m.distanceKm} km (aviation-grade, via the desktop app)`;
   }
   if (cached === 'none') return 'Sensor.Community (opportunistic, app-open hours only)';
   return 'not yet determined';

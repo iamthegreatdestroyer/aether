@@ -649,3 +649,30 @@ The last classic-roadmap phase. G0.6 proved the renderer inside WebView2 months 
   command — the G0.6 files-are-the-truth-channel pattern, reused.
 - **`desktop.yml`**: MSI built on workflow_dispatch or version tags, artifact-uploaded;
   deliberately NOT part of the 6-hourly data deploys.
+
+## 10. The deferred backlog — worked through post-roadmap
+
+### 10.1 METAR truth — SHIPPED 2026-08-18. The second native cheque, cashed.
+
+The obs chain's biggest hole was international truth: London and Tokyo scored against
+Sensor.Community citizen medians, current-hour-only, app-open-hours-only. METARs fix both
+dimensions at once — global station history, quality-controlled, from the proposal's original
+first-choice source — and P6's native transport is what made them reachable.
+
+**The deferred hard part evaporated on probe.** "Station resolution work" was deferred at P6
+because it looked like it needed a station directory. It doesn't: `GET /api/data/metar?bbox=
+<±0.7°>&format=json&hours=N` returns every nearby airport's reports WITH per-report lat/lon
+(verified 2026-08-18: London box → EGLL/EGLC/EGWU/EGKB at 20-minute cadence; Tokyo box →
+RJTT/RJTI/RJTF/…). Nearest-station resolution is one haversine over the response.
+
+- **Chain order is a continuity decision**: `nws-obs` stays first so an established US ledger
+  (KNYC) never silently switches truth source mid-stream; `metar` second (native-only, global
+  history, 48 h backfill); `sensor-community` remains the PWA fallback. Provider is stamped
+  per observation, so mixed-provider histories stay legible in the receipts.
+- **One obs per hour, closest to the top of the hour** — the same dedupe rule as NWS, so the
+  scorer needs zero changes. `wspd` knots → m/s at the capture boundary.
+- **The self-check now cashes both cheques**: boot under Tauri fetches GFZ Kp AND runs a
+  read-only `captureMetar` for London, reporting station + hours + latest observation to
+  `aether-native-check.jsonl`.
+- Desktop CI proven same day: first `desktop.yml` run green on windows-latest; the P6 push's
+  Pages deploy + contract probe also green. Releases are a `git tag` away.

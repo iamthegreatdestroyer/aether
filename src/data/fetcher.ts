@@ -20,6 +20,7 @@ const MIN_INTERVAL_MS: Record<string, number> = {
   librewxr: 2_000,
   rainviewer: 2_000, // their hard cap is 100 req/IP/min; one index call is nothing
   'iem-nexrad': 2_000,
+  aviationweather: 2_000, // native-only METARs; one bbox call per location per refresh
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];
