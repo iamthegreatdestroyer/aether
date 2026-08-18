@@ -97,6 +97,27 @@ async function refresh(): Promise<void> {
   }
 }
 
+/**
+ * "Open ↗" raises the main window. A widget that cannot get you to the app is a dead end —
+ * and the whole reason this is a second window of the same app rather than a separate
+ * program is that the jump costs nothing.
+ */
+async function openMainWindow(): Promise<void> {
+  if (!('__TAURI_INTERNALS__' in window)) return;
+  try {
+    const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+    const main = await WebviewWindow.getByLabel('main');
+    if (!main) return;
+    await main.unminimize().catch(() => undefined);
+    await main.show();
+    await main.setFocus();
+  } catch (err) {
+    console.warn('[widget] could not raise the main window', err);
+  }
+}
+
+document.getElementById('open')?.addEventListener('click', () => void openMainWindow());
+
 // The main app broadcasts unit changes; same-origin windows can just listen for storage.
 window.addEventListener('storage', (e) => {
   if (e.key === 'aether.tempunit' || e.key === 'aether.locations') void refresh();

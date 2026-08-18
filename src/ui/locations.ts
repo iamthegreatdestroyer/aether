@@ -86,6 +86,21 @@ export function setHomeLocation(
   return updated;
 }
 
+/**
+ * Rename without touching coordinates — deliberately. locationKey is built from lat/lon, so
+ * a rename must never move a location: months of ledger receipts, climatology and captured
+ * observations all hang off that key, and a typo fix should not orphan them.
+ */
+export function renameLocation(
+  locations: SavedLocation[],
+  id: string,
+  name: string,
+): SavedLocation[] {
+  const updated = locations.map((l) => (l.id === id ? { ...l, name: name.trim() || l.name } : l));
+  save(updated);
+  return updated;
+}
+
 export function removeLocation(locations: SavedLocation[], id: string): SavedLocation[] {
   const updated = locations.filter((l) => l.id !== id);
   save(updated);

@@ -16,6 +16,8 @@
         user-select: none;
       }
       #w {
+        position: relative;
+        container-type: inline-size;
         background: rgba(11, 18, 32, 0.88);
         border: 1px solid rgba(120, 140, 170, 0.25);
         border-radius: 14px;
@@ -26,14 +28,27 @@
         backdrop-filter: blur(6px);
       }
       #head { display: flex; align-items: baseline; gap: 8px; }
+      /* The open control only appears on hover: the widget is a glance surface, and a button
+         sitting on it permanently would make it look like an app window. */
+      #open {
+        position: absolute; top: 6px; right: 8px;
+        background: rgba(106,169,255,0.14); color: #9fc0ef;
+        border: 1px solid rgba(106,169,255,0.35); border-radius: 6px;
+        font: inherit; font-size: 10px; padding: 2px 7px; cursor: pointer;
+        opacity: 0; transition: opacity 120ms ease;
+      }
+      #w:hover #open { opacity: 1; }
+      #open:hover { background: rgba(106,169,255,0.25); }
       #name { font-weight: 700; font-size: 13px; }
-      #now { font-size: 22px; font-weight: 700; }
+      /* Resizing is the point of a desktop widget, so the type must survive it: the
+         reading scales with the window, not with a fixed px value. */
+      #now { font-size: clamp(18px, 7cqw, 34px); font-weight: 700; }
       #glyph { font-size: 18px; }
       #meta { margin-left: auto; color: #8a93a6; font-size: 10px; text-align: right; }
-      #days { display: flex; flex: 1; margin-top: 6px; gap: 4px; }
+      #days { display: flex; flex: 1; min-height: 0; margin-top: 6px; gap: 4px; }
       .d { flex: 1; text-align: center; border-radius: 8px; padding: 2px 0; }
       .d .n { color: #8a93a6; font-size: 10px; }
-      .d .g { font-size: 15px; }
+      .d .g { font-size: clamp(13px, 4cqw, 22px); }
       .d .t { font-size: 11px; }
       .d .t b { font-size: 12px; }
       .d .p { height: 3px; border-radius: 2px; background: rgba(106, 169, 255, 0.15); margin: 3px 6px 0; overflow: hidden; }
@@ -44,6 +59,7 @@
   <body>
     <!-- The whole widget is a drag region: grab anywhere, place it anywhere. -->
     <div id="w" data-tauri-drag-region>
+      <button id="open" title="Open the Aether window">Open ↗</button>
       <div id="head" data-tauri-drag-region>
         <span id="name" data-tauri-drag-region>…</span>
         <span id="now" data-tauri-drag-region></span>

@@ -1139,3 +1139,46 @@ phone included: Overpass for named trails (ODbL), USGS 3DEP for elevation.
 Contract grew 16 → 36 sources across the day. Every strike kept the same discipline: probe
 first, let the probe correct the plan (adsbdb's tier, the alerts duplicate, MRMS's template),
 and refuse to bake anything whose value is freshness.
+
+## 13. Owner UX pass — 2026-08-18 (three screenshots, three real complaints)
+
+### 13.1 The map's primary click belongs to looking around
+
+Every left click anywhere on the map fired an "Add location?" prompt — so every pan that
+ended a pixel short, every popup dismissal and every exploratory tap interrupted the user.
+Adding is now deliberate, by three routes chosen for three different hands:
+
+- **`+ Add`** arms the next click (button relabels to "+ Click the map", cursor turns
+  crosshair, disarms after one use). This is the ONLY route that works on a touchscreen,
+  which is why it exists rather than relying on the gesture alone.
+- **Right-click / long-press** adds immediately — the shortcut for someone who already knows
+  where they want a pin.
+- The prompt still names the coordinates, so a mis-aimed click still costs nothing.
+
+Verified: plain click → 0 prompts; armed click → exactly 1, then the button resets;
+right-click → 1 with no arming.
+
+### 13.2 Panes are editable, and they get out of the way
+
+- **`✎` rename** on every card. Renaming deliberately does NOT touch coordinates:
+  `locationKey` is built from lat/lon, and months of ledger receipts, climatology and
+  captured observations hang off that key — a typo fix must not orphan them.
+- **The `+ Add` button is also the "new pane" button** the owner asked for; one control,
+  both jobs.
+- **Docked rail**: when every card is collapsed, nobody is reading one, so the rail leaves
+  its left column and lies along the bottom as a horizontal strip, handing the map its width
+  back. Expanding any card returns it to a vertical column. Verified at 1280 px: all
+  collapsed → row, 1256 px wide, 40 px tall, docked at the bottom; expand one → column,
+  280 px, back at the top.
+
+### 13.3 The widget is a window, so let it behave like one
+
+Resizable (260×110 up to 900×400) with type that scales by container query rather than fixed
+px, so the numbers stay readable at any size. A hover-revealed **`Open ↗`** raises the main
+window — a widget that cannot get you to the app is a dead end, and since it is a second
+window of the same app rather than a separate program, the jump costs nothing. Dragging was
+already there (the whole surface is a drag region).
+
+Caught while writing it: the new clamp rules were inserted ABOVE the originals in the same
+stylesheet, so the fixed px values below silently won. Folded into the original declarations
+instead — the classic cascade bug, found by reading the output rather than the intent.

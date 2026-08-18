@@ -565,3 +565,36 @@ html, body {
 .alert-minor,
 .alert-unknown  { color: var(--muted); border-color: var(--line); }
 .alert-more { color: var(--muted); }
+
+/* ---- card rename button ---- */
+.card-rename {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.card-rename:hover { color: var(--accent); }
+
+/* ---- docked rail: everything collapsed, so get out of the map's way ----
+   Desktop only. The rail leaves its left column and lies along the bottom as a horizontal
+   strip; expanding any card puts it back (main.ts toggles .is-docked). */
+@media (min-width: 701px) {
+  #cards.is-docked {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 40px;
+    width: auto;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+  }
+  #cards.is-docked .card { flex: 0 0 auto; min-width: 190px; }
+}

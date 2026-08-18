@@ -60,6 +60,11 @@ const capability = {
     'core:window:allow-show',
     'core:window:allow-hide',
     'core:window:allow-set-focus',
+    // The widget raises the main window when clicked, and remembers its own size.
+    'core:window:allow-unminimize',
+    'core:window:allow-inner-size',
+    'core:window:allow-set-size',
+    'core:window:allow-outer-position',
     {
       identifier: 'http:default',
       allow: [...hosts].sort().map((h) => ({ url: `https://${h}/*` })),

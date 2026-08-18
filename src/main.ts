@@ -43,9 +43,9 @@ import type { StormLedger } from './ui/stormPanel';
 import { fetchOvation, sampleAurora } from './data/space';
 import { balloonTruth } from './data/sondes';
 import { registerLayer } from './layers/registry';
-import { renderCard } from './ui/forecastCard';
+import { isCardExpanded, renderCard } from './ui/forecastCard';
 import type { CardState } from './ui/forecastCard';
-import { addLocation, loadLocations, locationKey, removeLocation, setHomeLocation } from './ui/locations';
+import { addLocation, loadLocations, locationKey, removeLocation, renameLocation, setHomeLocation } from './ui/locations';
 import { applyBasemapLegibility } from './ui/basemapLegibility';
 import { tempDelta, tempUnit, toggleTempUnit, unitLabel } from './ui/units';
 import type { SavedLocation } from './ui/locations';
@@ -269,18 +269,29 @@ homePin.addEventListener('click', () => {
   );
 });
 
-map.on('click', (e) => {
-  // Route mode captures clicks as waypoints; location-adding resumes when it's off.
-  if (isRouteMode()) {
-    addWaypoint(e.lngLat.lat, e.lngLat.lng);
-    return;
-  }
-  const name = window.prompt(
-    `Add location at ${e.lngLat.lat.toFixed(2)}, ${e.lngLat.lng.toFixed(2)}?\nName:`,
-  );
-  if (name === null) return;
+/**
+ * Adding a location used to happen on ANY left click, which meant every pan that ended a
+ * pixel short, every attempt to dismiss a popup, and every exploratory tap fired a prompt
+ * (owner, 2026-08-18). A map's primary click belongs to looking around. Adding is now
+ * deliberate, by three routes that suit three different hands:
+ *   + Add   arms the next click — the only route that works on a touchscreen
+ *   right-click / long-press   adds straight away, for someone who knows the gesture
+ *   the prompt still names the spot, so a mis-aimed click is still cancellable
+ */
+let addArmed = false;
+
+function setAddArmed(on: boolean): void {
+  addArmed = on;
+  addToggle.classList.toggle('is-on', on);
+  addToggle.textContent = on ? '+ Click the map' : '+ Add';
+  map.getCanvas().style.cursor = on ? 'crosshair' : '';
+}
+
+function addLocationAt(lat: number, lon: number): void {
+  const name = window.prompt(`Name this location (${lat.toFixed(2)}, ${lon.toFixed(2)}):`, '');
+  if (name === null) return; // cancelled — a mis-aimed click costs nothing
   try {
-    locations = addLocation(locations, name, e.lngLat.lat, e.lngLat.lng);
+    locations = addLocation(locations, name, lat, lon);
   } catch (err) {
     window.alert(String(err instanceof Error ? err.message : err));
     return;
@@ -289,6 +300,27 @@ map.on('click', (e) => {
   const added = locations[locations.length - 1];
   if (added) void hydrateLocation(added);
   renderCards();
+}
+
+const addToggle = document.getElementById('add-toggle') as HTMLButtonElement;
+addToggle.addEventListener('click', () => setAddArmed(!addArmed));
+
+map.on('click', (e) => {
+  // Route mode captures clicks as waypoints; location-adding resumes when it's off.
+  if (isRouteMode()) {
+    addWaypoint(e.lngLat.lat, e.lngLat.lng);
+    return;
+  }
+  if (!addArmed) return; // the default click is for reading the map, not editing it
+  setAddArmed(false);
+  addLocationAt(e.lngLat.lat, e.lngLat.lng);
+});
+
+// Right-click (and long-press on touch, which MapLibre maps to the same event) adds without
+// arming — the shortcut for anyone who already knows where they want a pin.
+map.on('contextmenu', (e) => {
+  if (isRouteMode()) return;
+  addLocationAt(e.lngLat.lat, e.lngLat.lng);
 });
 
 // ---------------------------------------------------------------- cards
@@ -309,6 +341,16 @@ function openCone(loc: SavedLocation): void {
   void renderCone(coneDialog, loc, cardStates.get(loc.id)?.data ?? null);
 }
 
+function handleRename(id: string): void {
+  const loc = locations.find((l) => l.id === id);
+  if (!loc) return;
+  const name = window.prompt('Rename this location:', loc.name);
+  if (name === null || !name.trim()) return;
+  locations = renameLocation(locations, id, name.trim());
+  syncMarkers();
+  renderCards();
+}
+
 function renderCards(): void {
   const ids = locations.map((l) => l.id);
   rail.replaceChildren(
@@ -319,9 +361,15 @@ function renderCards(): void {
         openCone,
         ids,
         renderCards,
+        handleRename,
       ),
     ),
   );
+  // Everything collapsed means nobody is reading a card right now, so the rail gets out of
+  // the way: it docks along the bottom as a horizontal strip and hands the map its width
+  // back. Expanding any card returns it to a vertical column (owner's request, 2026-08-18).
+  const allCollapsed = locations.length > 0 && locations.every((l) => !isCardExpanded(l.id));
+  rail.classList.toggle('is-docked', allCollapsed);
   syncRailHeight();
 }
 

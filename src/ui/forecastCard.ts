@@ -87,6 +87,7 @@ export function renderCard(
   onCone?: (loc: SavedLocation) => void,
   allIds: string[] = [],
   onToggle?: () => void,
+  onRename?: (id: string) => void,
 ): HTMLElement {
   const el = document.createElement('article');
   el.className = 'card';
@@ -107,6 +108,13 @@ export function renderCard(
   });
   const title = document.createElement('h2');
   title.textContent = state.loc.name;
+  const rename = document.createElement('button');
+  rename.className = 'card-rename';
+  rename.title = `Rename ${state.loc.name}`;
+  rename.setAttribute('aria-label', `Rename ${state.loc.name}`);
+  rename.textContent = '✎';
+  rename.addEventListener('click', () => onRename?.(state.loc.id));
+
   const remove = document.createElement('button');
   remove.className = 'card-remove';
   remove.title = `Remove ${state.loc.name}`;
@@ -120,9 +128,9 @@ export function renderCard(
     cone.setAttribute('aria-label', `Confidence cone for ${state.loc.name}`);
     cone.textContent = '📈';
     cone.addEventListener('click', () => onCone(state.loc));
-    head.append(caret, title, cone, remove);
+    head.append(caret, title, cone, rename, remove);
   } else {
-    head.append(caret, title, remove);
+    head.append(caret, title, rename, remove);
   }
   // Collapsed, the header IS the card, so it has to carry the one number people open the
   // app for. Expanded, the big .card-now block below owns it and this would be a duplicate.

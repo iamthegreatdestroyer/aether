@@ -26,12 +26,16 @@
         "url": "widget.html",
         "width": 380,
         "height": 148,
-        "resizable": false,
+        "resizable": true,
         "decorations": false,
         "transparent": true,
         "skipTaskbar": true,
         "alwaysOnBottom": true,
-        "visible": false
+        "visible": false,
+        "minWidth": 260,
+        "minHeight": 110,
+        "maxWidth": 900,
+        "maxHeight": 400
       }
     ],
     "security": {
