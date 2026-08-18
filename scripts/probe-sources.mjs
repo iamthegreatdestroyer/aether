@@ -142,7 +142,20 @@ if (targets.length === 0) {
   process.exit(1);
 }
 
-const results = await mapLimit(targets, CONCURRENCY, probe);
+// One retry for connection-level failures only. Twice on 2026-08-18 a GitHub runner
+// failed to reach two unrelated hosts (fetch failed, 0 B) while the sibling workflow's
+// runner probed the identical contract green in the same minute — per-runner egress blips
+// are real and should not block a deploy. HTTP-level failures (wrong status, missing CORS,
+// short body) are NOT retried: those are contract answers, not network noise.
+async function probeWithRetry(src) {
+  const first = await probe(src);
+  const transient = first.problems?.some((p) => p.startsWith('unreachable:'));
+  if (!transient) return first;
+  await new Promise((r) => setTimeout(r, 5000));
+  return probe(src);
+}
+
+const results = await mapLimit(targets, CONCURRENCY, probeWithRetry);
 const failures = results.filter((r) => !r.ok);
 
 if (asJson) {
