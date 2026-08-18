@@ -1211,3 +1211,29 @@ than the feature: **the native transport was being used for sources that never n
 refused by), browser fetch for everything else. This is the minimum-mechanism principle, and
 it would have prevented the P6 capability bug outright — that bug existed precisely because a
 mechanism meant for two hosts was silently applied to twenty-two.
+
+### 14.2 The geocoder P0 could not have — from the same board
+
+Rendering the OSINT board (it 403s a plain fetcher; the in-app browser reads it fine) turned
+up **Nominatim** in its GEO section — and that closes a decision left open since P0.
+
+P0 deliberately refused reverse geocoding: Open-Meteo's geocoding sub-product is CC BY-NC,
+and a non-commercial clause sitting inside an otherwise clean stack quietly forecloses future
+choices. So locations were named by hand. Nominatim is **ODbL** — the same licence family as
+Overpass, already in this contract — and measured CORS-open and keyless.
+
+Adding a location now offers the place's real name instead of a blank box. Verified:
+right-clicking lower Manhattan pre-fills **"World Trade Center"**; Battery Park City, St
+Clement Danes and Manatee County all resolve correctly at zoom 15, chosen by measurement (16
+returns street names, 14 collapses cities into counties). Where no closer place exists the
+county IS the honest answer, so the cascade runs specific → general and stops rather than
+inventing.
+
+Their policy forbids heavy use and is respected literally: ONE request when a person adds a
+location — never on pan, never on load, never in a loop — scheduler-held under the published
+1 req/s, and `probePolitely` so CI checks it daily rather than per push.
+
+**What the boards did NOT yield**, recorded so it isn't re-litigated: the maritime section is
+commercial incumbents (MarineTraffic's moat is a real receiver network); the weather section
+is OpenWeatherMap and AccuWeather, both thinner than what this app already has; large parts
+of the board are identity-fabrication tools, which were not mined.

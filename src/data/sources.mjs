@@ -720,6 +720,33 @@ export const SOURCES = [
   },
 
   {
+    id: 'nominatim',
+    name: 'Nominatim (OpenStreetMap geocoder)',
+    role: 'Names a location you just dropped — the licence-clean geocoder',
+    baseUrl: 'https://nominatim.openstreetmap.org/reverse',
+    probeUrl:
+      'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=27.4&lon=-82.45&zoom=15',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 50,
+    mustNotContain: '<html',
+    probePolitely: true,
+    license: 'ODbL 1.0 — attribution AND licence notice required',
+    attribution: 'Place names © OpenStreetMap contributors, ODbL 1.0',
+    rateLimit: 'HARD 1 req/s published policy, no heavy use — one call per location ADDED',
+    notes:
+      'MEASURED 2026-08-18: CORS *, keyless. This is the geocoder P0 wanted and could not ' +
+      'have: the Open-Meteo geocoding sub-product is CC BY-NC, and a non-commercial clause ' +
+      'inside an otherwise clean stack forecloses future decisions. Nominatim is ODbL, the ' +
+      'same family as Overpass already in this contract. Their policy explicitly forbids ' +
+      'heavy use, so this fires ONCE when a person adds a location — never on pan, never on ' +
+      'load, never in a loop — and is probePolitely for the CelesTrak reason. zoom=15 chosen ' +
+      'by measurement: 16 returns street names, 14 collapses cities into counties.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
     id: 'celestrak',
     name: 'CelesTrak GP element sets',
     role: 'Station passes — ISS/Tiangong visible-pass prediction in the Space panel',

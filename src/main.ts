@@ -30,6 +30,7 @@ import { buildSmokeDialog, renderSmoke } from './ui/smokePanel';
 import { buildMarineDialog, renderMarine } from './ui/marinePanel';
 import { buildTrailsDialog, renderTrails } from './ui/trailsPanel';
 import { fetchAlertsForPoint } from './data/alerts';
+import { reverseNameSoon } from './data/places';
 import { AlertsLayer } from './layers/alerts';
 import { FiresLayer } from './layers/fires';
 import { LightningLayer } from './layers/lightning';
@@ -287,8 +288,16 @@ function setAddArmed(on: boolean): void {
   map.getCanvas().style.cursor = on ? 'crosshair' : '';
 }
 
-function addLocationAt(lat: number, lon: number): void {
-  const name = window.prompt(`Name this location (${lat.toFixed(2)}, ${lon.toFixed(2)}):`, '');
+async function addLocationAt(lat: number, lon: number): Promise<void> {
+  // Offer the place's real name rather than a blank box. Bounded, because naming is a
+  // courtesy and nobody should wait on a volunteer geocoder to add a pin.
+  map.getCanvas().style.cursor = 'progress';
+  const suggested = await reverseNameSoon(lat, lon);
+  map.getCanvas().style.cursor = '';
+  const name = window.prompt(
+    `Name this location (${lat.toFixed(2)}, ${lon.toFixed(2)}):`,
+    suggested ?? '',
+  );
   if (name === null) return; // cancelled — a mis-aimed click costs nothing
   try {
     locations = addLocation(locations, name, lat, lon);
@@ -313,14 +322,14 @@ map.on('click', (e) => {
   }
   if (!addArmed) return; // the default click is for reading the map, not editing it
   setAddArmed(false);
-  addLocationAt(e.lngLat.lat, e.lngLat.lng);
+  void addLocationAt(e.lngLat.lat, e.lngLat.lng);
 });
 
 // Right-click (and long-press on touch, which MapLibre maps to the same event) adds without
 // arming — the shortcut for anyone who already knows where they want a pin.
 map.on('contextmenu', (e) => {
   if (isRouteMode()) return;
-  addLocationAt(e.lngLat.lat, e.lngLat.lng);
+  void addLocationAt(e.lngLat.lat, e.lngLat.lng);
 });
 
 // ---------------------------------------------------------------- cards

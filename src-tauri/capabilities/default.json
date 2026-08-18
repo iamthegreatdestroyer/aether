@@ -97,6 +97,9 @@
           "url": "https://nomads.ncep.noaa.gov/*"
         },
         {
+          "url": "https://nominatim.openstreetmap.org/*"
+        },
+        {
           "url": "https://overpass-api.de/*"
         },
         {

@@ -34,6 +34,7 @@ const MIN_INTERVAL_MS: Record<string, number> = {
   overpass: 3_000, // shared volunteer instance — be a good guest
   'usgs-3dep': 1_000,
   planespotters: 1_000, // one lookup per click, cached per registration
+  nominatim: 1_100, // their published policy is 1 req/s — stay under it, not at it
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];
