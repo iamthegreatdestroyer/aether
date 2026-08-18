@@ -693,3 +693,18 @@ fetch behind a 3 h cache. Tier A, no key management at all.
   429 tolerated in CI because DEMO_KEY quota is per-IP and runners share pools.
 - Verified live at ship time with a real event: Earth-directed CME, shock arrival
   2026-08-20 12:00Z (~54 h out), predicted Kp 0–4, from the 2026-08-16 23:00Z Enlil run.
+
+### 10.3 Altitude wind levels — SHIPPED 2026-08-18. The level slider, Aether-style.
+
+The Windy tour's level slider (16 levels there), realized as four: Sfc / 850 / 500 / 250 hPa.
+Pressure-level GFS U/V decodes with the SAME pure-Python template-5.3 path as 10 m wind —
+no decoder work, just four NOMADS filter fetches pinned to one resolved cycle (the switcher
+must never mix model runs). "latest" keeps its P1-era name as the surface file so committed
+artifacts and old clients stay valid; levels are data/wind/{850,500,250}.{png,json}.
+
+- windLayer gains setLevel(): teardown + re-init (trails from the old level would be a lie
+  at the new one). Chips render only while particles run; choice persists.
+- Build verified physical: max speeds ascend 26.6 → 42.4 → 64.0 → 102.6 m/s (Sfc→250).
+- Picker cross-checked at 250 hPa against Open-Meteo GFS south of NZ (winter jet):
+  37.8 m/s @ 172° vs 40.9 @ 173° — direction within 1°, speed within the known
+  decimation+quantization cost.

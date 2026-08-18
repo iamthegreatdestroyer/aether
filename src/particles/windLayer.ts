@@ -12,10 +12,17 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
 import { WindEngine } from './engine';
 import type { EngineParams, ViewState, WindField } from './engine';
 
-/** Same-origin artifact produced by scripts/build_wind_texture.py (Tier B cron on Pages,
- *  committed snapshot in dev). Relative path on purpose — works at "/" and "/<repo>/". */
-const TEXTURE_URL = 'data/wind/latest.png';
-const SIDECAR_URL = 'data/wind/latest.json';
+/** Same-origin artifacts produced by scripts/build_wind_texture.py (Tier B cron on Pages,
+ *  committed snapshots in dev). Relative paths on purpose — work at "/" and "/<repo>/".
+ *  File ids are the builder contract: "latest" is the surface level (its P1-era name, kept
+ *  so old artifacts and clients stay valid); pressure levels are named by their hPa. */
+export const WIND_LEVELS = [
+  { id: 'latest', label: 'Sfc', title: '10 m wind' },
+  { id: '850', label: '850', title: '850 hPa (~1.5 km)' },
+  { id: '500', label: '500', title: '500 hPa (~5.5 km)' },
+  { id: '250', label: '250', title: '250 hPa — jet stream (~10.5 km)' },
+] as const;
+export type WindLevelId = (typeof WIND_LEVELS)[number]['id'];
 
 export interface WindMeta {
   cycle: string;
@@ -60,6 +67,30 @@ export class WindLayer {
   /** Decoded pixel data kept CPU-side for the picker — same texels the shader samples. */
   private pixels: Uint8ClampedArray | null = null;
   meta: WindMeta | null = null;
+  private levelId: WindLevelId = 'latest';
+
+  get level(): WindLevelId {
+    return this.levelId;
+  }
+
+  /**
+   * Switch altitude. The engine's field is set at init, so a level change is a teardown:
+   * dispose, forget the field, re-init from the new level's texture. Particle trails from
+   * the old level would be a lie at the new one — the clear is intentional, not cosmetic.
+   */
+  async setLevel(id: WindLevelId): Promise<void> {
+    if (id === this.levelId) return;
+    this.levelId = id;
+    const wasRunning = this.running;
+    this.stop();
+    this.engine?.dispose();
+    this.engine = null;
+    this.gl = null;
+    this.field = null;
+    this.pixels = null;
+    this.meta = null;
+    if (wasRunning) await this.start();
+  }
 
   constructor(
     private map: MapLibreMap,
@@ -110,8 +141,9 @@ export class WindLayer {
   }
 
   private async init(): Promise<void> {
+    const base = `data/wind/${this.levelId}`;
     const [meta, image] = await Promise.all([
-      fetch(SIDECAR_URL).then((r) => {
+      fetch(`${base}.json`).then((r) => {
         if (!r.ok) throw new Error('wind sidecar missing — run scripts/build_wind_texture.py');
         return r.json() as Promise<WindMeta>;
       }),
@@ -119,7 +151,7 @@ export class WindLayer {
         const img = new Image();
         img.onload = () => resolve(img);
         img.onerror = () => reject(new Error('wind texture missing'));
-        img.src = TEXTURE_URL;
+        img.src = `${base}.png`;
       }),
     ]);
     this.meta = meta;

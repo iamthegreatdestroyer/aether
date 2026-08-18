@@ -400,3 +400,8 @@ html, body {
 .cme-row.muted { color: var(--muted, #8a93a6); }
 .cme-incoming { color: #ffb454; }
 .cme-note { margin: -0.2rem 0 0.4rem; font-size: 0.74rem; color: var(--muted, #8a93a6); }
+
+/* Wind altitude chips */
+#wind-levels { display: inline-flex; gap: 2px; margin-left: 4px; }
+#wind-levels button { font-size: 10px; padding: 2px 6px; opacity: 0.75; }
+#wind-levels button.is-on { opacity: 1; outline: 1px solid var(--accent, #6ea8fe); }

@@ -40,7 +40,8 @@ import type { CardState } from './ui/forecastCard';
 import { addLocation, loadLocations, locationKey, removeLocation } from './ui/locations';
 import type { SavedLocation } from './ui/locations';
 import { buildSourcesDialog, renderFooter } from './ui/attribution';
-import { WindLayer } from './particles/windLayer';
+import { WIND_LEVELS, WindLayer } from './particles/windLayer';
+import type { WindLevelId } from './particles/windLayer';
 import { RadarLayer } from './layers/radar';
 import { SatelliteLayer } from './layers/satellite';
 import { DivergenceLayer } from './layers/divergence';
@@ -340,9 +341,43 @@ async function setWind(on: boolean): Promise<void> {
   }
   windToggle.classList.toggle('is-on', windLayer.isRunning);
   localStorage.setItem(WIND_PREF_KEY, windLayer.isRunning ? 'on' : 'off');
+  syncWindLevels();
 }
 
 windToggle.addEventListener('click', () => void setWind(!windLayer.isRunning));
+
+// Altitude switcher (tour idea #4's sibling): chips appear only while the layer runs —
+// a level choice with no particles on screen would be a dead control.
+const WIND_LEVEL_KEY = 'aether.windlevel';
+const windLevels = document.createElement('div');
+windLevels.id = 'wind-levels';
+windLevels.hidden = true;
+for (const l of WIND_LEVELS) {
+  const b = document.createElement('button');
+  b.textContent = l.label;
+  b.title = l.title;
+  b.dataset['level'] = l.id;
+  b.addEventListener('click', () => {
+    void windLayer.setLevel(l.id).then(() => {
+      localStorage.setItem(WIND_LEVEL_KEY, l.id);
+      syncWindLevels();
+    });
+  });
+  windLevels.append(b);
+}
+windToggle.after(windLevels);
+
+function syncWindLevels(): void {
+  windLevels.hidden = !windLayer.isRunning;
+  for (const b of windLevels.querySelectorAll('button')) {
+    b.classList.toggle('is-on', b.dataset['level'] === windLayer.level);
+  }
+}
+
+{
+  const saved = localStorage.getItem(WIND_LEVEL_KEY) as WindLevelId | null;
+  if (saved && WIND_LEVELS.some((l) => l.id === saved)) void windLayer.setLevel(saved);
+}
 
 // Battery: no animation while the tab is hidden. Resume follows the saved preference.
 document.addEventListener('visibilitychange', () => {

@@ -4,14 +4,14 @@
   "cycle": "20260818T0000Z",
   "validTime": "2026-08-18T00:00:00Z",
   "forecastHour": 0,
-  "variable": "10 m wind",
+  "variable": "250 hPa wind (jet level)",
   "width": 360,
   "height": 181,
-  "uMin": -25.98274658203125,
-  "uMax": 25.98274658203125,
-  "vMin": -25.98274658203125,
-  "vMax": 25.98274658203125,
-  "maxSpeedMs": 26.62879508151721,
+  "uMin": -99.93646240234375,
+  "uMax": 99.93646240234375,
+  "vMin": -99.93646240234375,
+  "vMax": 99.93646240234375,
+  "maxSpeedMs": 102.61175175979203,
   "lonRange": [
     -180,
     180
@@ -20,6 +20,6 @@
     90,
     -90
   ],
-  "builtAt": "2026-08-18T06:03:16+00:00",
+  "builtAt": "2026-08-18T06:03:23+00:00",
   "decodedBy": "scripts/build_wind_texture.py (pure-python GRIB2 template 5.3)"
 }

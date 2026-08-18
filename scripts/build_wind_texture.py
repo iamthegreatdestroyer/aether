@@ -69,16 +69,31 @@ def fetch_with_retry(url: str) -> bytes:
     raise RuntimeError(f"fetch failed after retries: {last}")
 
 
-def fetch_latest_grib() -> tuple[bytes, str, str]:
+# Altitude levels (backlog item 3, from the Windy tour's level slider). File names are the
+# client contract: src/particles/windLayer.ts derives URLs as data/wind/<id>.{png,json}.
+# "latest" stays the surface level's name so the P1-era committed artifact remains the
+# last-known-good and old clients keep working untouched.
+LEVELS = [
+    ("latest", "lev_10_m_above_ground=on", "10 m wind"),
+    ("850", "lev_850_mb=on", "850 hPa wind"),
+    ("500", "lev_500_mb=on", "500 hPa wind"),
+    ("250", "lev_250_mb=on", "250 hPa wind (jet level)"),
+]
+
+
+def grib_url(date: str, run: str, level_param: str) -> str:
+    return (
+        f"{NOMADS}?file=gfs.t{run}z.pgrb2.0p25.f000"
+        f"&{level_param}&var_UGRD=on&var_VGRD=on"
+        f"&dir=%2Fgfs.{date}%2F{run}%2Fatmos"
+    )
+
+
+def fetch_latest_grib(level_param: str) -> tuple[bytes, str, str]:
     """Try cycles newest-first until one returns actual GRIB."""
     for date, run in candidate_cycles():
-        url = (
-            f"{NOMADS}?file=gfs.t{run}z.pgrb2.0p25.f000"
-            f"&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on"
-            f"&dir=%2Fgfs.{date}%2F{run}%2Fatmos"
-        )
         print(f"trying GFS {date} {run}Z ...")
-        raw = fetch_with_retry(url)
+        raw = fetch_with_retry(grib_url(date, run, level_param))
         if raw.startswith(b"GRIB"):
             print(f"  got {len(raw):,} bytes")
             return raw, date, run
@@ -88,14 +103,7 @@ def fetch_latest_grib() -> tuple[bytes, str, str]:
     raise RuntimeError("no publishable GFS cycle found in the last 24 h")
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--stride", type=int, default=4, help="grid decimation (4 -> 360x181, ~1 deg)")
-    ap.add_argument("--out", default="public/data/wind/latest.png")
-    args = ap.parse_args()
-
-    raw, date, run = fetch_latest_grib()
-
+def build_level(raw: bytes, out: Path, stride: int, date: str, run: str, variable: str) -> None:
     fields: dict[str, np.ndarray] = {}
     for msg in split_messages(raw):
         m = parse_message(msg)
@@ -105,10 +113,9 @@ def main() -> int:
             print(f"  decoded {name.upper()}GRD {m['nj']}x{m['ni']} template 5.{m['drt']}")
 
     if "u" not in fields or "v" not in fields:
-        print("ERROR: missing UGRD or VGRD in response", file=sys.stderr)
-        return 1
+        raise RuntimeError(f"missing UGRD or VGRD in response for {variable}")
 
-    s = args.stride
+    s = stride
     u, v = fields["u"][::s, ::s], fields["v"][::s, ::s]
     half = u.shape[1] // 2
     u, v = np.roll(u, half, axis=1), np.roll(v, half, axis=1)
@@ -119,7 +126,6 @@ def main() -> int:
     rgba[..., 1] = np.round((v + extent) / (2 * extent) * 255).astype(np.uint8)
     rgba[..., 3] = 255
 
-    out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(rgba, "RGBA").save(out, optimize=True)
 
@@ -130,7 +136,7 @@ def main() -> int:
         "cycle": f"{date}T{run}00Z",
         "validTime": f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{run}:00:00Z",
         "forecastHour": 0,
-        "variable": "10 m wind",
+        "variable": variable,
         "width": int(u.shape[1]),
         "height": int(u.shape[0]),
         "uMin": -extent, "uMax": extent,
@@ -145,6 +151,28 @@ def main() -> int:
 
     print(f"wrote {out} ({out.stat().st_size:,} B, {u.shape[1]}x{u.shape[0]})")
     print(f"wrote {out.with_suffix('.json')}  cycle {date}/{run}Z  max {speed.max():.1f} m/s")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--stride", type=int, default=4, help="grid decimation (4 -> 360x181, ~1 deg)")
+    ap.add_argument("--outdir", default="public/data/wind")
+    args = ap.parse_args()
+
+    outdir = Path(args.outdir)
+
+    # Resolve the newest published cycle ONCE (surface fetch walks back), then pin every
+    # other level to that same cycle so the level switcher never mixes model runs.
+    first_id, first_param, first_var = LEVELS[0]
+    raw, date, run = fetch_latest_grib(first_param)
+    build_level(raw, outdir / f"{first_id}.png", args.stride, date, run, first_var)
+
+    for level_id, level_param, variable in LEVELS[1:]:
+        raw = fetch_with_retry(grib_url(date, run, level_param))
+        if not raw.startswith(b"GRIB"):
+            raise RuntimeError(f"{variable}: cycle {date}/{run}Z answered non-GRIB")
+        build_level(raw, outdir / f"{level_id}.png", args.stride, date, run, variable)
+
     return 0
 
 
