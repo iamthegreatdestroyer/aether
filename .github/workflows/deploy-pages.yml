@@ -44,7 +44,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       # The contract must hold before a deploy — same guards as the daily probe.
-      - run: node scripts/probe-sources.mjs --tier A   # polite sources excluded by default
+      # Contract drift still blocks the deploy; a third party unreachable from this
+      # runner does not — that is what the strict daily audit is for.
+      - run: node scripts/probe-sources.mjs --tier A --soft-unreachable
       - run: node scripts/gen-attribution.mjs --check
       # The Tauri HTTP allowlist is derived from the same contract — a hand-edited scope is
       # how the desktop build silently blocked 20 of 22 hosts after P6.

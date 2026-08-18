@@ -450,6 +450,7 @@ export const SOURCES = [
     license: 'NASA data — free, attribution requested',
     attribution: 'NASA FIRMS',
     rateLimit: '5000 transactions / 10 min per MAP_KEY; scheduler holds 350 ms spacing',
+    probePolitely: true,
     notes:
       'MEASURED 2026-08-18: SUCCESS responses send Access-Control-Allow-Origin * (the ' +
       'dummy-key 400 omits it — do not conclude CORS from error paths). Fully PWA-capable. ' +
@@ -458,7 +459,9 @@ export const SOURCES = [
       'to the Tier B cron clusters. The probe intentionally uses an invalid key: a stable ' +
       '400 proves the endpoint is alive and its contract unchanged without spending quota. ' +
       'Returned versions include 2.0URT (ultra real-time, ~1-2 h latency) — fresher than ' +
-      'the advertised NRT ~3 h.',
+      'the advertised NRT ~3 h. probePolitely (2026-08-18): the probe deliberately sends an ' +
+      'INVALID key, and repeating that from shared CI egress IPs both looks like credential ' +
+      'probing and gets connection-refused — daily is plenty for an aliveness check.',
     verifiedAt: '2026-08-18',
   },
   {

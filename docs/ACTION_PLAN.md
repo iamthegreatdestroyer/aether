@@ -938,3 +938,24 @@ Fix, opt-IN rather than opt-out so a future rate-limited source is protected by 
 daily scheduled run (and manual dispatch) passes `--include-polite`. The skip is always
 PRINTED — "Skipping 1 rate-limit-sensitive source(s) — celestrak" — because a silent cap
 would read as "everything checked" when it wasn't (the plan's own no-silent-caps rule).
+
+### 11.7 Two reds, two meanings — the deploy gate learns the difference
+
+Three deploys failed today on third parties being unreachable from a GitHub runner, which
+says nothing about our contract. But collapsing that into "just don't fail" would throw away
+the drift detection the probe exists for. So the probe now separates them:
+
+- **contract drift** (wrong status, missing CORS, short body) — still fatal everywhere. The
+  app WILL misbehave.
+- **unreachable** (refused/timed out even after the retry) — fatal in the strict daily
+  audit, a `::warning::` under `--soft-unreachable`, which only the deploy gate passes.
+
+`firms-api` joined `celestrak` as `probePolitely`: its probe deliberately sends an INVALID
+key, and repeating that from shared CI egress both looks like credential probing and gets
+connection-refused. Daily is plenty for an aliveness check.
+
+Both branches were tested end-to-end by temporarily injecting an unresolvable host into the
+contract — strict reported drift, soft warned and passed — because "the logic is simple" is
+exactly the reasoning that shipped §11.3's broken capability scope. The summary line was
+fixed in the same pass: it read "24/24 sources match" while one source was never reached.
+It now reads "23/24 sources match the contract, 1 unreachable and therefore NOT checked."

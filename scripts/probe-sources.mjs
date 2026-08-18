@@ -178,7 +178,21 @@ async function probeWithRetry(src) {
 }
 
 const results = await mapLimit(targets, CONCURRENCY, probeWithRetry);
-const failures = results.filter((r) => !r.ok);
+
+/**
+ * Two different verdicts wear the same red, and only one of them is our problem:
+ *   contract drift  — wrong status, missing CORS, short body: the app WILL misbehave.
+ *   unreachable     — connection refused or timed out even after the retry: a third party
+ *                     or a runner's egress, telling us nothing about the contract.
+ * `--soft-unreachable` (the deploy gate) keeps drift fatal while letting a flaky host
+ * degrade to a warning. The daily audit runs WITHOUT it and stays strict, because
+ * "unreachable every day this week" is a real finding — just not a deploy blocker.
+ */
+const softUnreachable = process.argv.includes('--soft-unreachable');
+const isUnreachable = (r) =>
+  r.problems.length > 0 && r.problems.every((x) => x.startsWith('unreachable:'));
+const failures = results.filter((r) => !r.ok && !(softUnreachable && isUnreachable(r)));
+const softened = softUnreachable ? results.filter((r) => !r.ok && isUnreachable(r)) : [];
 
 if (asJson) {
   console.log(JSON.stringify({ probedAt: new Date().toISOString(), results }, null, 2));
@@ -194,7 +208,17 @@ if (asJson) {
     for (const p of r.problems) console.log(`       -> ${p}`);
   }
   console.log(
-    `\n${results.length - failures.length}/${results.length} sources match the contract.\n`,
+    `\n${results.length - failures.length - softened.length}/${results.length} sources match the contract` +
+      (softened.length > 0
+        ? `, ${softened.length} unreachable and therefore NOT checked.\n`
+        : `.\n`),
+  );
+}
+
+if (softened.length > 0) {
+  console.warn(
+    `::warning::${softened.length} source(s) unreachable from this runner after a retry — ` +
+      `${softened.map((f) => f.id).join(', ')}. Not contract drift; the daily audit is strict.`,
   );
 }
 
