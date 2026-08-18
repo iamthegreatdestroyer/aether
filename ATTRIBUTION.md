@@ -7,7 +7,7 @@ Every string below must be displayed in the app on the **Data Sources** screen.
 These obligations are **not** waived by the personal-use scope — CC BY attaches to display
 of the data itself, regardless of whether the software is ever distributed.
 
-17 sources require attribution; 14 do not.
+19 sources require attribution; 15 do not.
 
 ## Required
 
@@ -28,6 +28,8 @@ of the data itself, regardless of whether the software is ever distributed.
 | NOAA CO-OPS tides & water levels | **NOAA CO-OPS** | US Government work, public domain |
 | NOAA NDBC buoy observations | **NOAA NDBC** | US Government work, public domain |
 | Open-Meteo Marine | **Open-Meteo.com** | CC BY 4.0 |
+| ADSB.lol (community ADS-B aggregator) | **Aircraft data © ADSB.lol contributors, ODbL 1.0** | ODbL 1.0 — attribution AND licence notice required |
+| adsbdb (callsign → route database) | **Route data from adsbdb.com** | Free community database; attribution requested |
 | OpenFreeMap | **© OpenStreetMap contributors** | ODbL (OpenStreetMap data) |
 | ECMWF Open Data (IFS + AIFS) | **This service is based on data and products of ECMWF** | CC BY 4.0 since 2025-10-01 |
 
@@ -46,6 +48,7 @@ Displayed anyway as provenance — the Data Sources screen is part of the trust 
 - **SWPC space weather alerts** — Public domain
 - **NOAA OVATION aurora** — Public domain
 - **aviationweather.gov (AWC)** — Public domain
+- **NWS active alerts (api.weather.gov)** — US Government work, public domain
 - **CelesTrak GP element sets** — Free; no formal attribution
 - **NOAA NHC/CPHC ATCF** — US Government work — public domain
 - **NOAA NOMADS GFS filter** — Public domain

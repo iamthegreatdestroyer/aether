@@ -28,8 +28,11 @@ import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
 import { buildSmokeDialog, renderSmoke } from './ui/smokePanel';
 import { buildMarineDialog, renderMarine } from './ui/marinePanel';
+import { fetchAlertsForPoint } from './data/alerts';
+import { AlertsLayer } from './layers/alerts';
 import { FiresLayer } from './layers/fires';
 import { LightningLayer } from './layers/lightning';
+import { AircraftLayer } from './layers/aircraft';
 import { isThisWeird } from './data/climatology';
 import { fetchHonesty } from './data/ensemble';
 import { buildConeDialog, renderCone } from './ui/coneDialog';
@@ -88,6 +91,17 @@ const nativeReady = initNativeTransport().then(async (native) => {
       ordinary = `FAILED: ${err instanceof Error ? err.message : String(err)}`;
     }
 
+    // Third native cheque: live aircraft. Same rule as the ordinary-source assertion above —
+    // a capability that only the UI exercises is a capability nobody verifies.
+    let air: string;
+    try {
+      const { fetchAircraft } = await import('./data/flight');
+      const ac = await fetchAircraft(27.4, -82.45, 100);
+      air = `ok ${ac.length} aircraft`;
+    } catch (err) {
+      air = `FAILED: ${err instanceof Error ? err.message : String(err)}`;
+    }
+
     const kp = await fetchKpSeries();
     // The second cheque: London sits outside NWS coverage, so its ledger truth depends on
     // this exact path. captureMetar only reads — the obs store is untouched by a self-check.
@@ -102,6 +116,7 @@ const nativeReady = initNativeTransport().then(async (native) => {
         at: new Date().toISOString(),
         nativeTransport: true,
         ordinarySource: ordinary,
+        aircraft: air,
         kpSource: kp.sourceLabel,
         kpOfficial: kp.official,
         kpLatest: kp.readings[kp.readings.length - 1] ?? null,
@@ -362,6 +377,12 @@ async function hydrateLocation(loc: SavedLocation): Promise<void> {
   if (snap) {
     setCardState(loc, { data: snap.data, fetchedAt: snap.fetchedAt, stale: true, error: null });
   }
+
+  // Alerts first and independently: a warning in force must not wait on — or be lost to —
+  // a forecast fetch that fails. Cheap, keyless, and the highest-priority thing on the card.
+  void fetchAlertsForPoint(loc)
+    .then((alerts) => setCardState(loc, { alerts }))
+    .catch(() => undefined);
 
   try {
     const data: ForecastData = await fetchForecast(loc);
@@ -681,6 +702,41 @@ document.getElementById('storms-toggle')!.addEventListener('click', () => {
       if (stormLedger) showStormOnMap(map, stormLedger, i);
     });
   });
+});
+
+const alertsLayer = new AlertsLayer(map);
+const alertsToggle = document.getElementById('alerts-toggle') as HTMLButtonElement;
+alertsLayer.onChange = () => {
+  const st = alertsLayer.state;
+  alertsToggle.classList.toggle('is-on', st.enabled);
+  alertsToggle.title = st.enabled
+    ? `${st.polygons} warning polygons · ${st.extreme} extreme, ${st.severe} severe · NWS, 5 min refresh`
+    : 'NWS warning polygons — severity-coloured, live';
+};
+alertsToggle.addEventListener('click', () => {
+  if (alertsLayer.state.enabled) alertsLayer.disable();
+  else void alertsLayer.enable().catch((err) => console.warn('[alerts]', err));
+});
+
+const aircraftLayer = new AircraftLayer(map);
+const airToggle = document.getElementById('air-toggle') as HTMLButtonElement;
+aircraftLayer.onChange = () => {
+  const st = aircraftLayer.state;
+  airToggle.classList.toggle('is-on', st.enabled);
+  airToggle.title = st.enabled
+    ? `${st.count} aircraft in view${st.emergencies ? ` · ${st.emergencies} EMERGENCY` : ''} · ADSB.lol (ODbL), 15 s refresh`
+    : 'Live aircraft (desktop app only — open ADS-B feeds refuse browsers)';
+};
+airToggle.addEventListener('click', () => {
+  if (aircraftLayer.state.enabled) {
+    aircraftLayer.disable();
+    return;
+  }
+  airToggle.disabled = true;
+  void aircraftLayer
+    .enable()
+    .catch((err) => window.alert(err instanceof Error ? err.message : String(err)))
+    .finally(() => (airToggle.disabled = false));
 });
 
 const lightningLayer = new LightningLayer(map);

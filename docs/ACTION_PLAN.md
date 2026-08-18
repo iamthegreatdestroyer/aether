@@ -1062,3 +1062,48 @@ buoys, and astronomy. Measured the same day: **CO-OPS tide predictions send
   the passes.ts pattern reused (pure function, independent oracle).
 - Verified live at Home: falling toward low 1.2 ft in 4 h 44 min; buoy PMAF1 at 29 km
   reporting 91 °F water (°F because it follows the units toggle); model waves 1.5 ft.
+
+### 12.2 ✈ Flight — the FR24 strike. SHIPPED 2026-08-18 (desktop).
+
+Live aircraft, ODbL data from the community aggregator the same volunteer feeders supply.
+**Desktop-only, and the UI says so**: every open lane refuses browsers — adsb.lol sends no
+CORS header, airplanes.live 403s an unfamiliar client, adsb.fi sends none, and OpenSky
+scopes CORS to its OWN origin (a deliberate "not for your site"). Tier B was rejected on the
+lightning principle: planes move continuously, so a baked plane map is theater. Third native
+cheque, now asserted in the boot self-check beside the ordinary-source and Kp ones.
+
+Drawn silhouette rotated by true track (a dot cannot show heading, and heading is most of
+what makes a traffic map readable), altitude-banded colour, emergency squawks (7500/7600/
+7700) in alarm red drawn outside the ramp so the one aircraft you must not miss cannot be
+averaged away. Click → callsign, type, registration, altitude, speed, climb — then an async
+route lookup from adsbdb, cached per callsign for the session.
+
+**The probe corrected me**: adsbdb was filed A-native by assumption because its sibling is,
+and the contract check found it DOES send CORS. Routes are browser-reachable; only positions
+need the native transport.
+
+### 12.3 ⚠ Alerts — the RadarScope strike, redirected. SHIPPED 2026-08-18.
+
+The scouting report aimed at Level 2 radar. Probing changed the answer honestly:
+- MRMS national mosaic is real and open (2-minute cadence, 592 KB/frame) but arrives as
+  **GRIB2 template 5.41 (PNG-packed)**, which our decoder does not read — recorded as a
+  known gap, not papered over.
+- More decisively: **radar baked on a 6-hourly cron is stale by design.** Same test that
+  kept lightning live-or-nothing. Aether's tile radar is already fresher than any bake.
+
+So the strike went to what a storm app is actually *for*: NWS active alerts — CORS-open,
+keyless, live. 261 alerts nationwide at probe time, 86 with polygons.
+- **The banner sits at the top of the forecast card**, above the temperature and the
+  weird-chip, because a warning in force outranks everything else on that card. Severity
+  drives colour; the expiry clock is always attached (an alert without its clock is half a
+  fact). Fetched independently of the forecast so a failed forecast can never swallow a
+  warning.
+- Map layer: severity-coloured polygons, stroked as well as filled because the edge is the
+  information ("am I inside it?"). Only ~a third of alerts carry geometry — the rest are
+  county/zone alerts, and inventing a shape for those would be a lie, so the layer carries
+  what it has and the card answers the point query.
+- Verified live: Home showed "⚠ Heat Advisory — until 07:00 PM (31 min)"; layer loaded 85
+  polygons, 1 extreme, 60 severe.
+- Housekeeping the probe forced: an unconsumed P0-era `nws-alerts` stub existed with the same
+  id — the duplicate was caught by the contract check and merged, and its probe URL used
+  `limit=1`, which api.weather.gov answers 400 to alongside `status`.

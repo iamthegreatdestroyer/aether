@@ -60,20 +60,6 @@ export const SOURCES = [
     verifiedAt: '2026-08-16',
   },
   {
-    id: 'nws-alerts',
-    name: 'NWS api.weather.gov (alerts)',
-    role: 'US CAP alerts with polygons',
-    probeUrl: 'https://api.weather.gov/alerts/active?area=NY',
-    tier: 'A',
-    cors: 'open',
-    expectStatus: [200],
-    license: 'US Government work — public domain',
-    attribution: null,
-    rateLimit: 'fair use',
-    notes: 'Tier B cron polls this every 15 min for the FCM push lane.',
-    verifiedAt: '2026-08-16',
-  },
-  {
     id: 'met-no',
     name: 'MET Norway Locationforecast 2.0',
     role: 'Nordic-strong global forecast; nowcast',
@@ -586,6 +572,78 @@ export const SOURCES = [
       'Same family and terms as the main forecast API (already in this contract), different ' +
       'sub-domain. Returns nulls for inland points rather than erroring — the UI reports ' +
       'that honestly as "no water here" instead of drawing a flat zero line.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
+    id: 'adsb-lol',
+    name: 'ADSB.lol (community ADS-B aggregator)',
+    role: 'Live aircraft positions — the Flightradar24 arbitrage, desktop-native',
+    baseUrl: 'https://api.adsb.lol/v2',
+    probeUrl: 'https://api.adsb.lol/v2/point/27.4/-82.45/25',
+    tier: 'A-native',
+    cors: 'none',
+    expectStatus: [200],
+    minBytes: 20,
+    mustNotContain: '<html',
+    license: 'ODbL 1.0 — attribution AND licence notice required',
+    attribution: 'Aircraft data © ADSB.lol contributors, ODbL 1.0',
+    rateLimit: 'dynamic by load; key-free today, keys promised later for feeders. 15 s poll, viewport-scoped',
+    notes:
+      'MEASURED 2026-08-18: keyless, 174 aircraft around this desk in one call, but NO ' +
+      'Access-Control-Allow-Origin. Every open lane refuses browsers — airplanes.live 403s, ' +
+      'adsb.fi sends no header, and OpenSky scopes CORS to its OWN origin. A Tier B cron is ' +
+      'rejected on the lightning principle: aircraft move continuously, so a stale plane map ' +
+      'is theater. Hence A-native: the desktop shell\'s third cheque. ODbL means the licence ' +
+      'itself must be shown, not just the name — see ATTRIBUTION.md.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
+    id: 'adsbdb',
+    name: 'adsbdb (callsign → route database)',
+    role: 'Where a flight is going — origin/destination for a clicked aircraft',
+    baseUrl: 'https://api.adsbdb.com/v0',
+    probeUrl: 'https://api.adsbdb.com/v0/callsign/DAL2621',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 50,
+    mustNotContain: '<html',
+    license: 'Free community database; attribution requested',
+    attribution: 'Route data from adsbdb.com',
+    rateLimit: 'courtesy lookup on click only, cached for the session — never polled',
+    notes:
+      'Queried ONLY when someone clicks a specific aircraft, and cached per callsign for the ' +
+      'session: a flight number\'s route does not change mid-flight. Unknown callsigns are ' +
+      'cached as null so a miss is never retried in a loop. TIER CORRECTED 2026-08-18: this ' +
+      'was filed A-native by assumption (its sibling adsb-lol is), and the probe caught it — ' +
+      'adsbdb DOES send Access-Control-Allow-Origin. Routes are browser-reachable; only the ' +
+      'POSITIONS need the native transport.',
+    verifiedAt: '2026-08-18',
+  },
+
+  {
+    id: 'nws-alerts',
+    name: 'NWS active alerts (api.weather.gov)',
+    role: 'Severe weather warnings — the safety feature storm apps charge for',
+    baseUrl: 'https://api.weather.gov/alerts',
+    probeUrl: 'https://api.weather.gov/alerts/active?status=actual&area=FL',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [200],
+    minBytes: 100,
+    mustNotContain: '<html',
+    license: 'US Government work, public domain',
+    attribution: null,
+    rateLimit: 'generous; app polls only while the layer is on (5 min) or a card refreshes',
+    notes:
+      'MEASURED 2026-08-18: CORS *, keyless. 261 alerts nationwide, 86 carrying polygons — ' +
+      'the rest are county/marine zone alerts with no drawn box, so the map layer shows the ' +
+      'polygons and the CARD shows what is in force at the point (a point query answers ' +
+      'exactly that). Chosen over MRMS/Level-2 radar for the storm strike: radar baked on a ' +
+      '6-hourly cron would be stale by design (the lightning principle), and a tornado ' +
+      'warning over your house outranks a prettier reflectivity ramp. Merged 2026-08-18 with an unconsumed P0-era stub of the same id — the probe caught the duplicate. Its probe URL used limit=1, which api.weather.gov answers 400 to when combined with status; area scoping is the working form.',
     verifiedAt: '2026-08-18',
   },
 

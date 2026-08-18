@@ -7,6 +7,8 @@
  */
 
 import { fmtTemp, temp, tempDelta, unitLabel } from './units';
+import { expiryLabel, severityClass, worst } from '../data/alerts';
+import type { Alert } from '../data/alerts';
 import { describeWeather } from '../data/openmeteo';
 import type { ForecastData } from '../data/openmeteo';
 import type { Weirdness } from '../data/climatology';
@@ -25,6 +27,8 @@ export interface CardState {
   weirdness: Weirdness | null;
   /** Per-day honesty labels from real ensemble spread. Null until fetched. */
   honesty: DayHonesty[] | null;
+  /** Active NWS alerts at this point — the one thing that outranks the forecast. */
+  alerts?: Alert[] | null;
 }
 
 function ageLabel(fetchedAt: number): string {
@@ -129,6 +133,21 @@ export function renderCard(
     title.after(peek);
   }
   el.append(head);
+
+  // An active warning outranks every other thing on this card, so it sits directly under the
+  // name — before the temperature, before the weird-chip. Severity drives the styling; the
+  // expiry is always attached, because an alert without its clock is half a fact.
+  const top = worst(state.alerts ?? []);
+  if (top) {
+    const banner = document.createElement('div');
+    banner.className = `alert-banner ${severityClass(top.severity)}`;
+    const extra = (state.alerts ?? []).length - 1;
+    banner.innerHTML =
+      `<b>⚠ ${top.event}</b> — ${expiryLabel(top)}` +
+      (extra > 0 ? ` <span class="alert-more">+${extra} more</span>` : '');
+    banner.title = top.headline ?? top.event;
+    el.append(banner);
+  }
 
   if (state.error) {
     const err = document.createElement('p');

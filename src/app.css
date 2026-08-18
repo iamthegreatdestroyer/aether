@@ -549,3 +549,19 @@ html, body {
 .marine-truth { font-size: 0.8rem; margin: 0.3rem 0; }
 .marine-src { font-size: 0.72rem; color: var(--muted); }
 .marine-buoy, .marine-wave { font-size: 0.84rem; margin: 0.45rem 0; }
+
+/* ---- alert banner on the forecast card ---- */
+.alert-banner {
+  margin: 4px 0 6px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  border: 1px solid;
+}
+.alert-extreme  { color: #ff6b8a; border-color: rgba(224, 36, 94, 0.6);  background: rgba(224, 36, 94, 0.12); }
+.alert-severe   { color: #ff9a3c; border-color: rgba(255, 107, 53, 0.55); background: rgba(255, 107, 53, 0.1); }
+.alert-moderate { color: #f7c948; border-color: rgba(247, 201, 72, 0.45); background: rgba(247, 201, 72, 0.08); }
+.alert-minor,
+.alert-unknown  { color: var(--muted); border-color: var(--line); }
+.alert-more { color: var(--muted); }

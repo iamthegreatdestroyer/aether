@@ -15,6 +15,12 @@
       "identifier": "http:default",
       "allow": [
         {
+          "url": "https://api.adsb.lol/*"
+        },
+        {
+          "url": "https://api.adsbdb.com/*"
+        },
+        {
           "url": "https://api.librewxr.net/*"
         },
         {

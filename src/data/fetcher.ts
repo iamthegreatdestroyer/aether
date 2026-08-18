@@ -26,6 +26,9 @@ const MIN_INTERVAL_MS: Record<string, number> = {
   'firms-api': 350,
   'noaa-coops': 500, // two calls per location (predictions + observed) on panel open
   'open-meteo-marine': 1_000,
+  'adsb-lol': 3_000, // volunteer network: one viewport query per poll, never a sweep
+  adsbdb: 1_000,
+  'nws-alerts': 1_000,
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];
