@@ -33,7 +33,12 @@ jobs:
       # No install step: the probe deliberately has zero dependencies and imports the
       # contract directly. A contract that needs a toolchain to verify stops being verified.
       - name: Probe every source in the contract
-        run: node scripts/probe-sources.mjs ${{ github.event_name == 'push' && '' || '--include-polite' }}
+        # Strict on the SCHEDULED audit (that is what the audit is for); soft on pushes,
+        # because a contributor editing the contract should not be blocked by a third party
+        # refusing GitHub's egress for thirty seconds. Measured 2026-08-18: both FIRMS hosts
+        # fast-failed a runner while the fire cron on the SAME runner fetched 144,957
+        # detections minutes later — intermittent, not a contract fact.
+        run: node scripts/probe-sources.mjs ${{ github.event_name == 'push' && '--soft-unreachable' || '--include-polite' }}
 
       - name: Verify ATTRIBUTION.md matches the contract
         run: node scripts/gen-attribution.mjs --check
