@@ -529,3 +529,9 @@ html, body {
    than its neighbours in the strip. */
 .card.is-collapsed header { flex-wrap: nowrap; }
 .card.is-collapsed h2 { white-space: nowrap; }
+
+@media (max-width: 700px) {
+  /* The rail is a flex ROW here, and the default `stretch` made every collapsed card as
+     tall as the one expanded card next to it. Bottom-align so each keeps its own height. */
+  #cards { align-items: flex-end; }
+}
