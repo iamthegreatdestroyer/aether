@@ -463,3 +463,24 @@ html, body {
   #wind-levels { flex: 0 0 auto; }
   #wind-levels button { padding: 4px 6px; }
 }
+
+/* ---- map attribution: MapLibre ships a white pill that fights a dark map. On a phone the
+   expanded (compact-show) form becomes a full-width WHITE BAND across the forecast cards —
+   measured 44px tall at y=753 on the S25+. Attribution is contractual and stays visible;
+   it just has to wear the app's colours. */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  background: rgba(11, 18, 32, 0.85) !important;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.maplibregl-ctrl-attrib a { color: var(--muted); }
+.maplibregl-ctrl-attrib-button { filter: invert(0.9); opacity: 0.65; }
+
+@media (max-width: 700px) {
+  /* A card needs 274px of content; the rail was 215 and clipped the three-day row clean
+     off (measured on the S25+). Give it the room and sit above the attribution. */
+  #cards { height: 282px; bottom: 30px; }
+  .maplibregl-ctrl-attrib { max-width: 60vw; }
+}
