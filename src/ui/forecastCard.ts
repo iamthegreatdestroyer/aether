@@ -6,6 +6,7 @@
  * data as live would be a small lie, and this app's entire identity is receipts.
  */
 
+import { fmtTemp, temp, tempDelta, unitLabel } from './units';
 import { describeWeather } from '../data/openmeteo';
 import type { ForecastData } from '../data/openmeteo';
 import type { Weirdness } from '../data/climatology';
@@ -91,11 +92,11 @@ export function renderCard(
   const now = document.createElement('div');
   now.className = 'card-now';
   now.innerHTML = `
-    <span class="temp">${Math.round(current.temperature_2m)}°</span>
+    <span class="temp">${fmtTemp(current.temperature_2m)}</span>
     <span class="glyph" role="img" aria-label="${weather.label}">${weather.glyph}</span>
     <div class="now-detail">
       <div>${weather.label}</div>
-      <div>feels ${Math.round(current.apparent_temperature)}° · ${Math.round(current.relative_humidity_2m)}% rh</div>
+      <div>feels ${fmtTemp(current.apparent_temperature)} · ${Math.round(current.relative_humidity_2m)}% rh</div>
       <div>wind ${Math.round(current.wind_speed_10m)} km/h</div>
     </div>`;
   el.append(now);
@@ -128,16 +129,29 @@ export function renderCard(
     // Honesty badge: predictability that shows its work. The tooltip carries the full
     // derivation — members, spread, climatological yardstick — so the number is checkable.
     const h = state.honesty?.find((x) => x.date === iso) ?? null;
+    // Built HERE, not in the data layer: the sentence names units, and units are a display
+    // choice the user can flip at any moment (ui/units.ts). The range is absolute; both σ
+    // values are spreads and must not take the +32 offset.
+    const tip = h
+      ? `${h.members} GFS ensemble members put the high at ` +
+        `${temp(h.tmaxLo).toFixed(0)}–${temp(h.tmaxHi).toFixed(0)}${unitLabel()} ` +
+        `(σ ${tempDelta(h.tmaxStd).toFixed(1)}${unitLabel()}). ` +
+        (h.climStd !== null
+          ? `Typical variability here for this date: σ ${tempDelta(h.climStd).toFixed(1)}${unitLabel()} ` +
+            `(1940–2024) → ${h.predictabilityPct}% predictability.`
+          : 'Climatology still loading — showing raw spread.') +
+        (h.rainSplit ? ` Rain contested: ${h.wetMembers}/${h.precMembers} members wet.` : '')
+      : '';
     const badge = h
       ? `<div class="day-pred ${h.predictabilityPct !== null && h.predictabilityPct < 40 ? 'is-low' : ''}"
-           title="${h.tooltip.replace(/"/g, '&quot;')}">${
-             h.predictabilityPct !== null ? `${h.predictabilityPct}%` : `±${h.tmaxStd.toFixed(1)}°`
+           title="${tip.replace(/"/g, '&quot;')}">${
+             h.predictabilityPct !== null ? `${h.predictabilityPct}%` : `±${tempDelta(h.tmaxStd).toFixed(1)}°`
            }${h.rainSplit ? ' ⚡' : ''}</div>`
       : '';
     cell.innerHTML = `
       <div class="day-name">${i === 0 ? 'Today' : dayName(iso)}</div>
       <div class="day-glyph" role="img" aria-label="${d.label}">${d.glyph}</div>
-      <div class="day-temps">${Math.round(hi)}° / ${Math.round(lo)}°</div>
+      <div class="day-temps">${fmtTemp(hi)} / ${fmtTemp(lo)}</div>
       <div class="day-precip">${pp ?? 0}% 💧</div>${badge}`;
     days.append(cell);
   }

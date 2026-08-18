@@ -11,6 +11,7 @@
  * is ~120 lines and a library would be the heavier artifact.
  */
 
+import { fmtTemp } from './units';
 import { fetchCone } from '../data/ensemble';
 import type { ConeData, HourlyBand } from '../data/ensemble';
 import type { ForecastData } from '../data/openmeteo';
@@ -103,7 +104,7 @@ export async function renderCone(
   }
   for (let v = Math.ceil(yMin / 5) * 5; v <= yMax; v += 5) {
     grid += `<line x1="${PAD.l}" y1="${Y(v)}" x2="${W - PAD.r}" y2="${Y(v)}" stroke="rgba(255,255,255,0.06)"/>
-      <text x="${PAD.l - 5}" y="${Y(v) + 3}" text-anchor="end" class="cone-axis">${v}°</text>`;
+      <text x="${PAD.l - 5}" y="${Y(v) + 3}" text-anchor="end" class="cone-axis">${fmtTemp(v)}</text>`;
   }
 
   const det = card

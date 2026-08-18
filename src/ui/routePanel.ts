@@ -9,6 +9,7 @@
  * plain forecast map cannot give.
  */
 
+import { fmtTemp } from './units';
 import type { Map as MapLibreMap, GeoJSONSource } from 'maplibre-gl';
 import { ROUTE_MODES, sampleRoute } from '../data/trajectory';
 import type { RouteMode, RoutePlan, Waypoint } from '../data/trajectory';
@@ -139,7 +140,7 @@ function render(): void {
     ? plan.samples
         .map(
           (s) => `<span class="route-chip" title="km ${s.kmFromStart} · ${s.weatherLabel} · gusts ${s.gustKmh ?? '?'} km/h">
-            <b>${s.arrivalLocal}</b> ${s.weatherGlyph} ${s.tempC !== null ? Math.round(s.tempC) + '°' : '?'}
+            <b>${s.arrivalLocal}</b> ${s.weatherGlyph} ${s.tempC !== null ? fmtTemp(s.tempC) : '?'}
             · 💧${s.precipProb ?? 0}% · 💨${s.windKmh !== null ? Math.round(s.windKmh) : '?'}</span>`,
         )
         .join('')

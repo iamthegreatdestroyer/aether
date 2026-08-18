@@ -31,8 +31,9 @@ export interface DayHonesty {
   predictabilityPct: number | null;
   climStd: number | null;
   wetMembers: number;
+  /** Denominator for wetMembers — the precipitation members, which can differ from tmax's. */
+  precMembers: number;
   rainSplit: boolean;
-  tooltip: string;
 }
 
 export interface HourlyBand {
@@ -60,8 +61,8 @@ interface Bundle {
 
 const TTL_MS = 3 * 60 * 60 * 1000;
 const WET_MM = 0.1;
-/** v2: cache shape changed when the cone joined the bundle. */
-const cacheKey = (lk: string) => `ens2|${lk}`;
+/** v3: the formatted tooltip left the cache so unit switching is instant. */
+const cacheKey = (lk: string) => `ens3|${lk}`; // v3: raw numbers only, no stored prose
 
 const MEMBER_RE = /^temperature_2m(?:_member(\d+))?_(.+)$/;
 const PRECIP_RE = /^precipitation(?:_member(\d+))?_(.+)$/;
@@ -183,14 +184,9 @@ async function fetchBundle(loc: SavedLocation): Promise<Bundle> {
     }
 
     const rainSplit = wetFrac >= 0.25 && wetFrac <= 0.75;
-    const tooltip =
-      `${tmaxes.length} GFS ensemble members put the high at ` +
-      `${Math.min(...tmaxes).toFixed(0)}–${Math.max(...tmaxes).toFixed(0)}° (σ ${std.toFixed(1)}°). ` +
-      (climStd !== null
-        ? `Typical variability here for this date: σ ${climStd.toFixed(1)}° (1940–2024) → ` +
-          `${predictabilityPct}% predictability.`
-        : 'Climatology still loading — showing raw spread.') +
-      (rainSplit ? ` Rain contested: ${wet}/${gefsPrec.length} members wet.` : '');
+    // NOTE: no formatted sentence is built or cached here. This bundle is persisted, and a
+    // stored string carries whatever unit was active when it was written — flipping °F/°C
+    // would leave stale text until the TTL expired. The UI formats from these raw numbers.
 
     days.push({
       date,
@@ -201,8 +197,8 @@ async function fetchBundle(loc: SavedLocation): Promise<Bundle> {
       predictabilityPct,
       climStd: climStd !== null ? +climStd.toFixed(2) : null,
       wetMembers: wet,
+      precMembers: gefsPrec.length,
       rainSplit,
-      tooltip,
     });
   }
 

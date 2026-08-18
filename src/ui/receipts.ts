@@ -9,6 +9,7 @@
  * the panel says which.
  */
 
+import { fmtDeltaSigned, fmtDeltaUnit } from './units';
 import { summarize } from '../data/scorer';
 import { obsProviderLabel } from '../data/observations';
 import { locationKey } from './locations';
@@ -17,7 +18,7 @@ import type { SavedLocation } from './locations';
 function biasSentence(label: string, biasC: number): string {
   if (Math.abs(biasC) < 0.3) return `${label} runs true here`;
   const dir = biasC > 0 ? 'warm' : 'cold';
-  return `${label} runs ${Math.abs(biasC).toFixed(1)} °C ${dir} here`;
+  return `${label} runs ${fmtDeltaUnit(Math.abs(biasC))} ${dir} here`;
 }
 
 export function buildReceiptsDialog(): HTMLDialogElement {
@@ -57,8 +58,8 @@ export async function renderReceipts(
           .map(
             (m, i) => `<tr>
               <td>${i === 0 ? '🥇 ' : ''}${m.label}</td>
-              <td class="num">${m.maeC.toFixed(2)} °C</td>
-              <td class="num">${m.biasC > 0 ? '+' : ''}${m.biasC.toFixed(2)}</td>
+              <td class="num">${fmtDeltaUnit(m.maeC, 2)}</td>
+              <td class="num">${fmtDeltaSigned(m.biasC, 2)}</td>
               <td class="num muted">${m.n}</td>
             </tr>`,
           )

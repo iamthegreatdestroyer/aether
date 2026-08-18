@@ -959,3 +959,31 @@ contract — strict reported drift, soft warned and passed — because "the logi
 exactly the reasoning that shipped §11.3's broken capability scope. The summary line was
 fixed in the same pass: it read "24/24 sources match" while one source was never reached.
 It now reads "23/24 sources match the contract, 1 unreachable and therefore NOT checked."
+
+### 11.8 °F / °C — SHIPPED 2026-08-18. Two conversions, not one.
+
+A header toggle, defaulted from locale (en-US → °F) and remembered. The button shows the
+unit you are CURRENTLY seeing, not the one you would switch to: a toggle labelled with its
+target reads as a claim about the present and gets misread every time.
+
+Two rules carry the whole feature, both in `src/ui/units.ts`:
+
+1. **Stored data stays Celsius.** The ledger, obs store, climatology and caches are Celsius
+   on disk; conversion happens on the way to a screen. Storing display units would corrupt
+   the verification ledger the first time someone flipped the switch — scores computed in °C
+   compared against receipts recorded in °F.
+2. **A temperature and a temperature DIFFERENCE convert differently.** 20 °C is 68 °F
+   (×9/5 + 32); a 2 °C error is a 3.6 °F error (×9/5, no offset). `temp()` and `tempDelta()`
+   are named so the wrong one looks wrong at the call site. Deltas in this app: the ledger's
+   MAE and bias, ensemble σ and the predictability yardstick, the balloon-truth sonde−model
+   gap, and the whole AI-vs-physics legend (|IFS − AIFS|).
+
+Caught while wiring it: the honesty tooltip was a formatted STRING cached in IndexedDB, so a
+unit flip would have left stale text until the 3 h TTL expired — the exact failure the
+module's own rule warns about. The sentence now builds at render time from raw numbers
+(`DayHonesty` gained `precMembers`, lost `tooltip`; cache key `ens2` → `ens3`).
+
+Verified live in both directions: card 78 °F ⇄ 26 °C; cone axis 15/20/25/30 °C ⇄
+59/68/77/86 °F (exact); receipts MAE 0.96 °C ⇄ 1.73 °F (×1.8, no offset — the delta rule
+holding where it matters most); tooltip σ 1.5 °F ⇄ 0.9 °C while its 74% predictability and
+the member counts stay put.

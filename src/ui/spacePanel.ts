@@ -6,6 +6,7 @@
  * ONLY while the dialog is open. Closing the panel stops all of it.
  */
 
+import { fmtDeltaSigned, fmtTempUnit } from './units';
 import {
   auroraVerdict,
   azWord,
@@ -160,12 +161,12 @@ export async function renderSpace(
       const s = bt.sonde;
       const delta =
         bt.deltaC !== null
-          ? `<b class="${Math.abs(bt.deltaC) >= 2 ? 'delta-big' : ''}">${bt.deltaC > 0 ? '+' : ''}${bt.deltaC} °C</b>`
+          ? `<b class="${Math.abs(bt.deltaC) >= 2 ? 'delta-big' : ''}">${fmtDeltaSigned(bt.deltaC)}</b>`
           : '—';
       balloonRows.push(`<tr><td>${loc.name}</td>
         <td>${s.serial} (${s.type}) · ${s.distanceKm} km · ${s.ageMin < 90 ? s.ageMin + ' min ago' : Math.round(s.ageMin / 60) + ' h ago'}</td>
-        <td class="num">${s.tempC !== null ? s.tempC.toFixed(1) + ' °C' : '—'} @ ${Math.round(s.altM)} m</td>
-        <td class="num">${bt.modelTempC !== null ? bt.modelTempC.toFixed(1) + ' °C' : '—'}</td>
+        <td class="num">${s.tempC !== null ? fmtTempUnit(s.tempC) : '—'} @ ${Math.round(s.altM)} m</td>
+        <td class="num">${bt.modelTempC !== null ? fmtTempUnit(bt.modelTempC) : '—'}</td>
         <td class="num">${delta}</td></tr>`);
     } catch (err) {
       balloonRows.push(`<tr><td>${loc.name}</td><td colspan="4" class="muted">sonde lookup failed: ${err instanceof Error ? err.message : err}</td></tr>`);

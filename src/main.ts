@@ -42,6 +42,7 @@ import { renderCard } from './ui/forecastCard';
 import type { CardState } from './ui/forecastCard';
 import { addLocation, loadLocations, locationKey, removeLocation, setHomeLocation } from './ui/locations';
 import { applyBasemapLegibility } from './ui/basemapLegibility';
+import { tempDelta, tempUnit, toggleTempUnit, unitLabel } from './ui/units';
 import type { SavedLocation } from './ui/locations';
 import { buildSourcesDialog, renderFooter } from './ui/attribution';
 import { WIND_LEVELS, WindLayer } from './particles/windLayer';
@@ -164,6 +165,26 @@ function syncMarkers(): void {
     }
   }
 }
+
+// °F / °C. The button shows the unit you are CURRENTLY seeing, not the one you would switch
+// to — a toggle that displays its target reads as a claim about the present and is misread
+// every time. Stored data stays Celsius; see ui/units.ts.
+const unitToggle = document.getElementById('unit-toggle') as HTMLButtonElement;
+function syncUnitToggle(): void {
+  unitToggle.textContent = unitLabel();
+  unitToggle.title = `Showing ${unitLabel()} — click for ${tempUnit() === 'C' ? '°F' : '°C'}`;
+}
+syncUnitToggle();
+unitToggle.addEventListener('click', () => {
+  toggleTempUnit();
+  syncUnitToggle();
+});
+// One listener re-renders every surface that shows a temperature. Modal panels rebuild on
+// their next open, so they need nothing here.
+window.addEventListener('aether:units', () => {
+  renderCards();
+  renderDivLegend();
+});
 
 // 📍 Home: one permission prompt, then the device position becomes the first location.
 // Re-pinning moves the same entry (stable id) — 2-decimal rounding in setHomeLocation keeps
@@ -375,8 +396,8 @@ function renderDivLegend(): void {
   divLegend.innerHTML = `
     <div class="div-title">🤖 AI vs physics — |IFS − AIFS| 2 m temp · cycle ${s.cycle?.slice(9, 14) ?? ''}</div>
     <div class="div-row">${chips}
-      <span class="div-scale"><i></i>0.5° → 8°+</span>
-      ${s.stats ? `<span class="div-stats">${s.stats.pctOver2C}% of globe >2° apart · max ${s.stats.max}°</span>` : ''}
+      <span class="div-scale"><i></i>${tempDelta(0.5).toFixed(1)}° → ${Math.round(tempDelta(8))}°+</span>
+      ${s.stats ? `<span class="div-stats">${s.stats.pctOver2C}% of globe >${tempDelta(2).toFixed(1)}° apart · max ${tempDelta(s.stats.max).toFixed(1)}°</span>` : ''}
     </div>
     <div class="div-note">Not an error map — a humility map. Where it lights up, nobody knows yet
       which philosophy is right; hold the forecast loosely. ${'' /* attribution below */}</div>
