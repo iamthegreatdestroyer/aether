@@ -420,3 +420,8 @@ html, body {
 .pm-bad { color: #e01e1e; }
 .smoke-honesty { font-size: 0.74rem; color: var(--muted, #8a93a6); margin-top: 0.8rem; }
 .smoke-fires-btn { font-size: 0.8rem; margin-bottom: 0.5rem; }
+
+/* Smoke live mode */
+.smoke-live { color: #4ade80; }
+.smoke-key { font-size: 0.76rem; color: var(--muted, #8a93a6); margin: 0.2rem 0 0.5rem; }
+.smoke-key input { font-size: 0.76rem; }

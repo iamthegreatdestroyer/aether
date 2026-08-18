@@ -768,3 +768,24 @@ attrs; flash_quality_flag != 0 dropped).
   29 s old, zero console warnings — both satellites parsing, window filling as designed.
 
 THE ENTIRE DEFERRED BACKLOG IS NOW CLOSED: 10.1–10.6, all probe-first, all verified live.
+
+### 10.7 FIRMS live fires — SHIPPED 2026-08-18. The MAP_KEY upgrade, and a CORS lesson.
+
+The Smoke Story's fire plane upgraded from "24 h window, 6-hourly snapshot" to "detections
+minutes old, queried at panel-open" — and the architecture assumption flipped AGAIN on probe:
+
+- **Do not conclude CORS from error paths.** The dummy-key 400 sends no CORS header; the
+  keyed SUCCESS response sends `Access-Control-Allow-Origin: *`. What looked like native
+  cheque #3 is plain Tier A — the live path works in the PWA, no desktop required. The
+  probe script now enforces CORS claims only on 2xx (the general form of this lesson).
+- **Key handling**: MAP_KEY requested with the owner's email via FIRMS's own endpoint,
+  delivered to Gmail, retrieved from there. It lives in localStorage ONLY (panel UI to
+  paste/forget it; ····-masked when set), never in source — the contract's probe uses an
+  invalid key on purpose: a stable 400 proves the endpoint alive without spending quota.
+- Three VIIRS orbiters queried per location (SNPP/NOAA-20/NOAA-21, 350 ms politeness vs
+  the 5000/10 min quota), low-confidence pixels dropped, ~5 km client-side clustering,
+  per-fire "seen HH:MMZ" stamps. Live failure falls back to the cron snapshot and SAYS SO.
+- Verified live: rows stamped 08:05-08:06Z queried at ~08:25Z — 2.0URT rows land ~20 min
+  after overpass, hours fresher than advertised NRT. NYC's picture changed from 2 cron
+  clusters to 9 live ones including a toward-verdict — better data changing the verdict is
+  the feature working, not a regression. Keyless fallback + zero-error console verified.

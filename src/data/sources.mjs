@@ -437,6 +437,31 @@ export const SOURCES = [
     verifiedAt: '2026-08-18',
   },
   {
+    id: 'firms-api',
+    name: 'NASA FIRMS area API (keyed)',
+    role: 'LIVE fire queries for the Smoke Story — MAP_KEY upgrade over the cron snapshot',
+    baseUrl: 'https://firms.modaps.eosdis.nasa.gov/api/area/csv',
+    probeUrl:
+      'https://firms.modaps.eosdis.nasa.gov/api/area/csv/INVALIDKEY/VIIRS_SNPP_NRT/-76,39,-72,42/1',
+    tier: 'A',
+    cors: 'open',
+    expectStatus: [400],
+    minBytes: 4,
+    license: 'NASA data — free, attribution requested',
+    attribution: 'NASA FIRMS',
+    rateLimit: '5000 transactions / 10 min per MAP_KEY; scheduler holds 350 ms spacing',
+    notes:
+      'MEASURED 2026-08-18: SUCCESS responses send Access-Control-Allow-Origin * (the ' +
+      'dummy-key 400 omits it — do not conclude CORS from error paths). Fully PWA-capable. ' +
+      'The MAP_KEY is personal, free (email form), stored in localStorage ONLY — never in ' +
+      'source, per the no-committed-secrets rule; without one the Smoke Story falls back ' +
+      'to the Tier B cron clusters. The probe intentionally uses an invalid key: a stable ' +
+      '400 proves the endpoint is alive and its contract unchanged without spending quota. ' +
+      'Returned versions include 2.0URT (ultra real-time, ~1-2 h latency) — fresher than ' +
+      'the advertised NRT ~3 h.',
+    verifiedAt: '2026-08-18',
+  },
+  {
     id: 'goes-glm',
     name: 'GOES GLM lightning (AWS open data)',
     role: 'LIVE lightning — 20 s flash granules, parsed in-browser with h5wasm',

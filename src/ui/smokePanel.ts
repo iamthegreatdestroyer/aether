@@ -6,7 +6,7 @@
  * not a plume model — the footer says so), and measured PM2.5 as the ground truth.
  */
 
-import { assessSmoke, compass } from '../data/smoke';
+import { assessSmoke, compass, getFirmsKey, setFirmsKey } from '../data/smoke';
 import type { SmokeAssessment } from '../data/smoke';
 import type { SavedLocation } from './locations';
 
@@ -33,9 +33,12 @@ function threatRows(a: SmokeAssessment): string {
     .map((t) => {
       const dirWord = { toward: '→ toward you', glancing: '↝ glancing', away: '↛ away' }[t.verdict];
       const cls = { toward: 'smoke-toward', glancing: 'smoke-glancing', away: 'smoke-away' }[t.verdict];
+      const seen = t.acqMs
+        ? ` · seen ${new Date(t.acqMs).toISOString().slice(11, 16)}Z`
+        : '';
       return `<tr>
         <td>${t.distanceKm} km ${compass(t.bearingFromYou)}</td>
-        <td class="num">${t.frp.toFixed(0)} MW · ${t.n} px</td>
+        <td class="num">${t.frp.toFixed(0)} MW · ${t.n} px${seen}</td>
         <td class="num">${t.windAtFireMs} m/s</td>
         <td class="${cls}">${dirWord} (${t.offAxisDeg}° off-axis)</td>
       </tr>`;
@@ -63,12 +66,15 @@ export async function renderSmoke(
     <h2>Smoke story</h2><p class="sources-intro">Reading the fire map…</p>`;
   dlg.querySelector('.dialog-close')?.addEventListener('click', () => dlg.close());
 
+  const key = getFirmsKey();
   const sections: string[] = [];
   let meta: SmokeAssessment | null = null;
+  let newestIso = '';
   for (const loc of locations) {
     try {
       const a = await assessSmoke(loc);
       meta = a;
+      if (a.mode === 'live' && a.firesAsOf > newestIso) newestIso = a.firesAsOf;
       sections.push(`<h3>${loc.name}</h3>${verdictHtml(a)}${threatRows(a)}<p class="smoke-pm">${pmHtml(a)}</p>`);
     } catch (err) {
       sections.push(
@@ -77,16 +83,41 @@ export async function renderSmoke(
     }
   }
 
+  const modeLine = !meta
+    ? ''
+    : meta.mode === 'live'
+      ? `<b class="smoke-live">LIVE query</b> · 3 VIIRS orbiters · newest detection ${(newestIso || meta.firesAsOf).slice(11, 16)}Z`
+      : `cron snapshot · built ${meta.firesAsOf.slice(0, 16).replace('T', ' ')}Z${key ? ' · live query failed, fell back' : ''}`;
+
+  const keyRow = key
+    ? `<p class="smoke-key">live queries on · MAP_KEY ····${key.slice(-4)}
+        <button id="firms-key-forget">forget key</button></p>`
+    : `<p class="smoke-key">Optional: paste a free FIRMS MAP_KEY for live fire queries
+        (get one at firms.modaps.eosdis.nasa.gov/api/map_key — stays on this device only)<br>
+        <input id="firms-key-input" placeholder="MAP_KEY" size="34">
+        <button id="firms-key-save">enable live</button></p>`;
+
   dlg.innerHTML = `
     <button class="dialog-close" aria-label="Close">×</button>
     <h2>Smoke story</h2>
-    <p class="sources-intro">NASA FIRMS · VIIRS 24 h${meta ? ` · built ${meta.firesBuiltAt.slice(0, 16).replace('T', ' ')}Z` : ''} · wind valid ${meta ? meta.windValidTime.slice(0, 13) + 'Z' : '—'}</p>
+    <p class="sources-intro">NASA FIRMS · ${modeLine} · wind valid ${meta ? meta.windValidTime.slice(0, 13) + 'Z' : '—'}</p>
     <button id="smoke-toggle-fires" class="smoke-fires-btn">${firesShown ? 'Hide' : 'Show'} fire dots on the map</button>
+    ${keyRow}
     ${sections.join('')}
     <p class="smoke-honesty">The ray test samples SURFACE wind at each fire — it is not a plume model.
     Smoke rides winds aloft, pools in valleys, and outlives its fire; the PM2.5 line is the measured truth.</p>`;
 
   dlg.querySelector('.dialog-close')?.addEventListener('click', () => dlg.close());
+  dlg.querySelector('#firms-key-save')?.addEventListener('click', () => {
+    const v = (dlg.querySelector('#firms-key-input') as HTMLInputElement | null)?.value ?? '';
+    if (v.trim().length < 16) return;
+    setFirmsKey(v);
+    void renderSmoke(dlg, locations, firesShown, onToggleFires);
+  });
+  dlg.querySelector('#firms-key-forget')?.addEventListener('click', () => {
+    setFirmsKey(null);
+    void renderSmoke(dlg, locations, firesShown, onToggleFires);
+  });
   dlg.querySelector('#smoke-toggle-fires')?.addEventListener('click', () => {
     onToggleFires();
     const b = dlg.querySelector('#smoke-toggle-fires');

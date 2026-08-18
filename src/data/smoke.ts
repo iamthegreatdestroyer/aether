@@ -13,7 +13,7 @@
  * The test answers one question honestly: "is anything upwind of me burning?"
  */
 
-import { fetchJson } from './fetcher';
+import { fetchJson, fetchText } from './fetcher';
 import { source } from './sources.mjs';
 import { bearingDeg, haversineKm } from './geo';
 import { locationKey } from '../ui/locations';
@@ -38,6 +38,100 @@ interface FireGeoJson {
   builtAt: string;
   source: string;
   detections: number;
+}
+
+// ------------------------------------------------- live queries (MAP_KEY)
+
+/**
+ * The MAP_KEY is personal and free (email form at firms.modaps.eosdis.nasa.gov/api/map_key)
+ * and lives in localStorage ONLY — never in source, never committed. Measured 2026-08-18:
+ * the keyed API's SUCCESS responses send CORS *, so this upgrade works in the plain PWA;
+ * responses carry 2.0URT rows (~1-2 h old) — fresher than the cron's 24 h window by hours.
+ */
+const FIRMS_KEY = 'aether.firmskey';
+
+export function getFirmsKey(): string | null {
+  const k = localStorage.getItem(FIRMS_KEY);
+  return k && k.trim().length >= 16 ? k.trim() : null;
+}
+
+export function setFirmsKey(key: string | null): void {
+  if (key === null) localStorage.removeItem(FIRMS_KEY);
+  else localStorage.setItem(FIRMS_KEY, key.trim());
+}
+
+/** Three polar orbiters = three chances per day a pass caught the fire recently. */
+const LIVE_SATS = ['VIIRS_SNPP_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'];
+
+interface LiveCluster extends FireCluster {
+  /** Newest detection in the cluster, epoch ms. */
+  acqMs: number;
+}
+
+function parseAreaCsv(text: string): Array<{ lat: number; lon: number; frp: number; acqMs: number }> {
+  const lines = text.trim().split('\n');
+  const header = lines[0]?.split(',') ?? [];
+  const col = (n: string) => header.indexOf(n);
+  const iLat = col('latitude');
+  const iLon = col('longitude');
+  const iFrp = col('frp');
+  const iDate = col('acq_date');
+  const iTime = col('acq_time');
+  const iConf = col('confidence');
+  if (iLat < 0 || iLon < 0 || iDate < 0) return [];
+  const out: Array<{ lat: number; lon: number; frp: number; acqMs: number }> = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i]!.split(',');
+    if (c[iConf] === 'l') continue; // low-confidence VIIRS pixels are mostly noise
+    const lat = Number(c[iLat]);
+    const lon = Number(c[iLon]);
+    const frp = Number(c[iFrp] ?? 0);
+    const hhmm = (c[iTime] ?? '0').padStart(4, '0');
+    const acqMs = Date.parse(`${c[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(acqMs)) continue;
+    out.push({ lat, lon, frp: Number.isFinite(frp) ? frp : 0, acqMs });
+  }
+  return out;
+}
+
+/** Live detections around a location, clustered to ~5 km bins. Null without a key. */
+async function fetchLiveFires(
+  loc: SavedLocation,
+): Promise<{ clusters: LiveCluster[]; newestMs: number } | null> {
+  const key = getFirmsKey();
+  if (!key) return null;
+  const s = source('firms-api');
+  const d = 4; // ±4° comfortably covers the 400 km assessment radius
+  const area = `${(loc.lon - d).toFixed(1)},${(loc.lat - d).toFixed(1)},${(loc.lon + d).toFixed(1)},${(loc.lat + d).toFixed(1)}`;
+  const texts = await Promise.all(
+    LIVE_SATS.map((sat) =>
+      fetchText('firms-api', `${s.baseUrl}/${key}/${sat}/${area}/1`).catch(() => ''),
+    ),
+  );
+  if (texts.every((t) => t === '')) throw new Error('all live FIRMS queries failed');
+
+  const BIN = 0.05;
+  const bins = new Map<string, { n: number; frp: number; acqMs: number; lat: number; lon: number }>();
+  for (const t of texts) {
+    for (const det of parseAreaCsv(t)) {
+      const k = `${Math.round(det.lat / BIN)}:${Math.round(det.lon / BIN)}`;
+      const b = bins.get(k);
+      if (b) {
+        b.n += 1;
+        b.frp += det.frp;
+        b.acqMs = Math.max(b.acqMs, det.acqMs);
+      } else {
+        bins.set(k, { n: 1, frp: det.frp, acqMs: det.acqMs, lat: det.lat, lon: det.lon });
+      }
+    }
+  }
+  let newestMs = 0;
+  const clusters: LiveCluster[] = [];
+  for (const b of bins.values()) {
+    newestMs = Math.max(newestMs, b.acqMs);
+    clusters.push({ lat: b.lat, lon: b.lon, n: b.n, frp: Math.round(b.frp * 10) / 10, acqMs: b.acqMs });
+  }
+  return { clusters, newestMs };
 }
 
 let fireCache: FireData | null = null;
@@ -145,6 +239,8 @@ export interface FireThreat {
   offAxisDeg: number;
   windAtFireMs: number;
   verdict: 'toward' | 'glancing' | 'away';
+  /** Newest detection time for this fire — live mode only. */
+  acqMs: number | null;
 }
 
 export interface SmokeAssessment {
@@ -154,20 +250,33 @@ export interface SmokeAssessment {
   top: FireThreat[];
   anyToward: boolean;
   windValidTime: string;
-  firesBuiltAt: string;
+  /** 'live' = keyed FIRMS query just now; 'cron' = the 6-hourly Tier B snapshot. */
+  mode: 'live' | 'cron';
+  /** Cron: artifact build time. Live: newest detection, ISO. */
+  firesAsOf: string;
   pm: { pm25: number; stations: number } | null;
 }
 
 const RADIUS_KM = 400;
 
 export async function assessSmoke(loc: SavedLocation): Promise<SmokeAssessment> {
-  const [fires, grid, pm] = await Promise.all([
-    loadFires(),
+  // Live first when a key exists; any live failure falls back to the cron snapshot,
+  // labelled as such — the mode is part of the answer, never silent.
+  let live: Awaited<ReturnType<typeof fetchLiveFires>> = null;
+  try {
+    live = await fetchLiveFires(loc);
+  } catch {
+    live = null;
+  }
+
+  const [cron, grid, pm] = await Promise.all([
+    live ? Promise.resolve(null) : loadFires(),
     loadWindGrid(),
     fetchPm25(loc).catch(() => null),
   ]);
 
-  const near = fires.clusters
+  const clusters: Array<FireCluster & { acqMs?: number }> = live?.clusters ?? cron!.clusters;
+  const near = clusters
     .map((c) => ({ c, distanceKm: haversineKm(loc.lat, loc.lon, c.lat, c.lon) }))
     .filter((x) => x.distanceKm <= RADIUS_KM)
     .sort((a, b) => b.c.frp - a.c.frp);
@@ -187,6 +296,7 @@ export async function assessSmoke(loc: SavedLocation): Promise<SmokeAssessment> 
       offAxisDeg: Math.round(off),
       windAtFireMs: Math.round(Math.hypot(u, v) * 10) / 10,
       verdict,
+      acqMs: c.acqMs ?? null,
     };
   });
 
@@ -197,7 +307,10 @@ export async function assessSmoke(loc: SavedLocation): Promise<SmokeAssessment> 
     top: top.slice(0, 3),
     anyToward: top.some((t) => t.verdict === 'toward'),
     windValidTime: grid.validTime,
-    firesBuiltAt: fires.builtAt,
+    mode: live ? 'live' : 'cron',
+    firesAsOf: live
+      ? new Date(live.newestMs).toISOString()
+      : (cron!.builtAt ?? new Date(0).toISOString()),
     pm,
   };
 }

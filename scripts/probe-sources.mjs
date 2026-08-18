@@ -66,7 +66,10 @@ async function probe(src) {
       problems.push(`status ${res.status}, contract expects ${src.expectStatus.join('/')}`);
     }
 
-    if (observedCors !== src.cors) {
+    // CORS is only checkable on success: error paths legitimately omit the header (measured
+    // on FIRMS 2026-08-18 — the keyed API sends * on 200 but nothing on its 400s, and the
+    // firms-api probe deliberately uses an invalid key so no quota is spent).
+    if (res.status >= 200 && res.status < 300 && observedCors !== src.cors) {
       problems.push(
         observedCors === 'none'
           ? 'CORS header DISAPPEARED — contract says browser-reachable'

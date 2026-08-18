@@ -21,6 +21,9 @@ const MIN_INTERVAL_MS: Record<string, number> = {
   rainviewer: 2_000, // their hard cap is 100 req/IP/min; one index call is nothing
   'iem-nexrad': 2_000,
   aviationweather: 2_000, // native-only METARs; one bbox call per location per refresh
+  // Keyed area queries: quota is 5000 transactions/10 min — 350 ms keeps us ~1/6th of it
+  // even if every saved location queries all three VIIRS satellites at once.
+  'firms-api': 350,
 };
 
 const RETRY_DELAYS_MS = [1_000, 4_000, 16_000];
@@ -101,7 +104,20 @@ export function hasNativeTransport(): boolean {
   return nativeFetch !== null;
 }
 
+/** fetchJson's sibling for CSV/text lanes — same scheduler, dedupe, and backoff. */
+export async function fetchText(sourceId: string, url: string): Promise<string> {
+  return fetchBody(sourceId, url, (r) => r.text());
+}
+
 export async function fetchJson<T>(sourceId: string, url: string): Promise<T> {
+  return fetchBody(sourceId, url, (r) => r.json() as Promise<T>);
+}
+
+async function fetchBody<T>(
+  sourceId: string,
+  url: string,
+  read: (r: Response) => Promise<T>,
+): Promise<T> {
   if (blockedSources().has(sourceId)) {
     throw new FetchError(url, null, `${sourceId} blocked (dev outage simulation)`);
   }
@@ -118,7 +134,7 @@ export async function fetchJson<T>(sourceId: string, url: string): Promise<T> {
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       try {
         const res = await doFetch(url, { headers: { Accept: 'application/json' } });
-        if (res.ok) return (await res.json()) as T;
+        if (res.ok) return await read(res);
         lastError = new FetchError(url, res.status, `${sourceId} answered ${res.status}`);
         // Only throttling and server errors are worth retrying; a 4xx is our bug.
         if (res.status !== 429 && res.status < 500) throw lastError;
