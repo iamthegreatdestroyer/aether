@@ -4,33 +4,46 @@ A free, personal-use weather app: Windy-class visualization, a forecast-verifica
 that compounds with use, and the atmosphere-to-space chain nobody fuses. **$0/month, no
 backend, no accounts, no ads.**
 
+![Aether desktop — satellite, radar, wind and live alerts over the Gulf](docs/img/desktop.png)
+
 > **Status: v0.3.0 — one app, four subscriptions replaced.** Live at
 > [iamthegreatdestroyer.github.io/aether](https://iamthegreatdestroyer.github.io/aether/); also
 > an installable PWA and a Tauri Windows desktop app whose Rust-side transport reaches the
 > sources browsers are refused.
 >
 > **Weather**: million-particle wind at four altitudes · radar with a recovering failover
-> chain · VIIRS satellite · ⚡ live lightning (GLM parsed in-browser, ~20 s from the sky) ·
-> 🔥 Smoke Story (FIRMS fires ray-tested against surface wind, PM2.5 truth) · ⚠ **NWS warning
-> polygons, with the alert banner sitting above the temperature on the card** ·
-> "Is this weird?" (73-year ERA5 percentiles) · **"Who Was Right?" four-model receipts scored
-> against real observations** · storm ledger · ensemble cones + honesty labels · IFS-vs-AIFS
-> divergence.
+> chain · VIIRS satellite that *probes for coverage* rather than assuming a date · ⚡ live
+> lightning (GLM parsed in-browser, ~20 s from the sky) · 🔥 Smoke Story (FIRMS fires
+> ray-tested against surface wind, PM2.5 truth) · ⚠ **NWS warnings, with the alert banner
+> above the temperature on the card** · "Is this weird?" (73-year ERA5 percentiles) ·
+> **"Who Was Right?" four-model receipts scored against real observations** · storm ledger ·
+> ensemble cones + honesty labels · IFS-vs-AIFS divergence.
 >
 > **And the things other apps charge for**: 🌊 **Marine** — NOAA tide curves with the measured
 > gauge printed beside the prediction, nearest-buoy sea state, wave model, moon
-> *(vs Navionics, $50/yr)* · ✈ **Air** — live ADS-B aircraft with route lookup, desktop only
-> because every open feed refuses browsers *(vs Flightradar24)* · 🥾 **Trails** — OSM trails
-> with the weather sampled at each trail *(vs AllTrails+ $36/yr, Gaia $40/yr)* ·
-> ☀ Space — CME arrival countdowns, aurora × cloud, ISS/Tiangong visible passes
-> (SGP4 cross-checked against Skyfield), live radiosondes.
+> *(vs Navionics, $50/yr)* · ✈ **Air** — live ADS-B aircraft with route lookup and a photo of
+> the actual airframe, desktop-only because every open feed refuses browsers
+> *(vs Flightradar24)* · 🥾 **Trails** — OSM trails with the weather sampled at each trail
+> *(vs AllTrails+ $36/yr, Gaia $40/yr)* · ☀ **Space** — CME arrival countdowns, aurora ×
+> cloud, ISS/Tiangong visible passes (SGP4 cross-checked against Skyfield), live radiosondes.
+>
+> Locations name themselves (Nominatim, ODbL), collapse to a bottom strip when you are done
+> reading them, and follow one °F/°C switch that knows a temperature and a temperature
+> *difference* convert differently.
 >
 > Tier B runs on GitHub Actions: wind textures, storm ledger, fire clusters, divergence and
-> marine stations refresh 6-hourly; the **36-source endpoint contract** is probed daily.
+> marine stations refresh 6-hourly; the **endpoint contract — 40 entries — is probed daily**.
 >
 > ```bash
 > volta run --node 20.20.1 -- pnpm -C aether dev   # http://localhost:5175
 > ```
+
+### The desktop widget
+
+A frameless, always-on-bottom strip that shares the app's units, locations and Home pin —
+drag it anywhere, resize it, click **Open ↗** to raise the full app.
+
+![The Aether desktop widget](docs/img/widget.png)
 
 Full plan: [`docs/ACTION_PLAN.md`](docs/ACTION_PLAN.md).
 Source research: `../Kimi_Agent_Free Weather App Proposals/`.
@@ -54,7 +67,7 @@ Source research: `../Kimi_Agent_Free Weather App Proposals/`.
 node scripts/probe-sources.mjs
 ```
 
-Last full run: **36/36 sources matched**, 2026-08-18.
+Last full run: **36/36 probed sources matched**, 2026-08-19 (40 entries; 4 are rate-limit-sensitive and checked daily rather than per push).
 
 ## Why the probe exists
 
