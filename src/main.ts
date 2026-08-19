@@ -697,22 +697,30 @@ async function setRadar(on: boolean): Promise<void> {
   renderTimeline();
 }
 
-function setSat(on: boolean): void {
+async function setSat(on: boolean): Promise<void> {
   try {
-    if (on) satellite.enable();
+    satToggle.disabled = on; // the date probe takes a moment; do not queue up clicks
+    if (on) await satellite.enable();
     else satellite.disable();
     satToggle.classList.toggle('is-on', satellite.isEnabled);
+    // Say WHICH day is on screen and, when the freshest was skipped, why — a viewer
+    // comparing this to a live webcam deserves to know it is looking at a composite.
     satToggle.title = satellite.date
-      ? `VIIRS true color, ${satellite.date} (daily imagery lags ~1 day)`
+      ? `VIIRS true color, ${satellite.date}` +
+        (satellite.steppedBack
+          ? ' — stepped back a day: the newer pass had not finished processing'
+          : ' (daily composite, lags ~1 day)')
       : 'Toggle the satellite layer';
     localStorage.setItem(SAT_PREF, on ? 'on' : 'off');
   } catch (err) {
     console.error('[satellite]', err);
+  } finally {
+    satToggle.disabled = false;
   }
 }
 
 radarToggle.addEventListener('click', () => void setRadar(!radar.state.enabled));
-satToggle.addEventListener('click', () => setSat(!satellite.isEnabled));
+satToggle.addEventListener('click', () => void setSat(!satellite.isEnabled));
 tlPlay.addEventListener('click', () => radar.setPlaying(!radar.state.playing));
 tlScrub.addEventListener('input', () => {
   radar.setPlaying(false);
@@ -730,7 +738,7 @@ function whenStyleReady(fn: () => void): void {
 whenStyleReady(() => {
   applyBasemapLegibility(map);
   if (localStorage.getItem(RADAR_PREF) !== 'off') void setRadar(true);
-  if (localStorage.getItem(SAT_PREF) === 'on') setSat(true);
+  if (localStorage.getItem(SAT_PREF) === 'on') void setSat(true);
 });
 
 // ---------------------------------------------------------------- chrome

@@ -1237,3 +1237,27 @@ location — never on pan, never on load, never in a loop — scheduler-held und
 commercial incumbents (MarineTraffic's moat is a real receiver network); the weather section
 is OpenWeatherMap and AccuWeather, both thinner than what this app already has; large parts
 of the board are identity-fabrication tools, which were not mined.
+
+### 14.3 The satellite bald spot — "yesterday" is not always complete either
+
+Owner screenshot, 2026-08-19 00:18 UTC: a black wedge across North America and the eastern
+Pacific in the satellite layer.
+
+P2 hard-coded "yesterday UTC" on sound reasoning — today's granules are always incomplete —
+but the reasoning stopped one step short. **VIIRS images the Americas LAST in the UTC day**
+(~17–23 UTC) and near-real-time processing lags a few hours, so for several hours after UTC
+midnight the previous day's western hemisphere is still landing. Which is precisely the hour
+someone in Florida is looking at the map.
+
+Measured rather than assumed: the same tile came back **9 KB for 2026-08-18 and 21 KB for
+2026-08-17** — a mostly-black JPEG versus a real picture.
+
+The layer now PROBES instead of assuming. On enable it fetches one z3 tile over the Americas
+(the region that empties first), decodes it, and measures the fraction of pure-black pixels —
+real true-colour imagery is never 0,0,0 even over night ocean, but missing data is. Over 35%
+black means step back a day; two candidates, then it shows the older one rather than an empty
+map. GIBS sends `Access-Control-Allow-Origin: *`, so the canvas readback is legal.
+
+The tooltip now names the day AND says when it stepped back, because a viewer comparing this
+to a live webcam deserves to know which composite they are looking at. Verified live: picked
+2026-08-17 with "stepped back a day: the newer pass had not finished processing".
