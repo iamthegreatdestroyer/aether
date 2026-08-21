@@ -6,9 +6,10 @@
  * data as live would be a small lie, and this app's entire identity is receipts.
  */
 
-import { fmtTemp, temp, tempDelta, unitLabel } from './units';
+import { fmtDeltaUnit, fmtTemp, temp, tempDelta, unitLabel } from './units';
 import { expiryLabel, severityClass, worst } from '../data/alerts';
 import type { Alert } from '../data/alerts';
+import type { NowcastState } from '../data/nowcast';
 import { describeWeather } from '../data/openmeteo';
 import type { ForecastData } from '../data/openmeteo';
 import type { Weirdness } from '../data/climatology';
@@ -29,6 +30,8 @@ export interface CardState {
   honesty: DayHonesty[] | null;
   /** Active NWS alerts at this point — the one thing that outranks the forecast. */
   alerts?: Alert[] | null;
+  /** What this location's own receipts say about the forecast it is showing. */
+  nowcast?: NowcastState | null;
 }
 
 function ageLabel(fetchedAt: number): string {
@@ -187,6 +190,37 @@ export function renderCard(
       <div>wind ${Math.round(current.wind_speed_10m)} km/h</div>
     </div>`;
   el.append(now);
+
+  // The Personal Nowcast: this location's own receipts, applied. The raw number above is
+  // never replaced — the correction sits beside it with its evidence attached, because a
+  // corrected number with no visible basis is exactly the kind of confident-sounding claim
+  // this app exists to refuse.
+  if (state.nowcast) {
+    const nc = document.createElement('div');
+    nc.className = 'nowcast';
+    if (state.nowcast.kind === 'corrected') {
+      const c = state.nowcast.correction;
+      const ranWarm = c.biasC > 0;
+      nc.classList.add('is-corrected');
+      nc.innerHTML =
+        `<b>${fmtTemp(state.nowcast.correctedC)}</b> adjusted — the forecast runs ` +
+        `<b>${fmtDeltaUnit(Math.abs(c.biasC))}</b> ${ranWarm ? 'warm' : 'cold'} here`;
+      nc.title =
+        `Measured from ${c.n} scored hours at this location (0–24 h leads), truth from ` +
+        `${c.station ?? 'local observations'}. Mean signed error ${c.biasC.toFixed(2)} °C, ` +
+        `standard error ${c.stdErrC.toFixed(2)} °C — applied only because the bias exceeds ` +
+        `twice its standard error. The raw forecast above is unmodified.`;
+    } else if (state.nowcast.kind === 'no-bias') {
+      nc.innerHTML = `<span class="nowcast-quiet">no measurable bias here — ${state.nowcast.n} scored hours</span>`;
+      nc.title =
+        'The models are scattered around the truth rather than leaning one way, so there is ' +
+        'no habit to correct. This is what a well-calibrated forecast looks like.';
+    } else {
+      nc.innerHTML = `<span class="nowcast-quiet">learning this location — ${state.nowcast.n} scored hours</span>`;
+      nc.title = 'A correction needs at least 100 scored hours before it is worth trusting.';
+    }
+    el.append(nc);
+  }
 
   // "Is this weird?" — the normality chip. Quiet when normal, loud when the answer is yes:
   // the whole point is that "should you care?" usually answers "no", and saying so plainly

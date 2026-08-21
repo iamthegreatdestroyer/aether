@@ -1261,3 +1261,32 @@ map. GIBS sends `Access-Control-Allow-Origin: *`, so the canvas readback is lega
 The tooltip now names the day AND says when it stepped back, because a viewer comparing this
 to a live webcam deserves to know which composite they are looking at. Verified live: picked
 2026-08-17 with "stepped back a day: the newer pass had not finished processing".
+
+## 15. The Personal Nowcast — SHIPPED 2026-08-19. The ledger pays out.
+
+The proposal's original promise, and the reason the verification apparatus exists at all:
+a forecast corrected by its own track record **at your station**. The scorer has carried the
+comment "the transparent bias the Personal Nowcast will correct with" since P3; this cashes it.
+
+**The finding that motivated it.** After a day of receipts, KSRQ (Sarasota) showed every
+model running COLD by 2–4 °F, with mean absolute error equal to absolute bias — the signature
+of one-directional error rather than scatter. DWD ICON led the field; Open-Meteo's blended
+"best match", which is what most apps quietly serve, was *worse than ICON alone*.
+
+**Three rules, because a wrong "corrected" number is worse than an honest raw one:**
+1. **Never replace the forecast.** The raw temperature stays; the correction sits beside it
+   with its evidence in the tooltip.
+2. **Never correct noise.** |bias| must exceed 2 × standard error. A model merely scattered
+   around the truth has no habit to correct, and "correcting" it would manufacture confidence
+   from a small sample. "No measurable bias here" is a real answer the UI states plainly —
+   it is what a well-calibrated forecast looks like.
+3. **Never correct from a thin record.** Under 100 scored hours the card says "learning this
+   location — N scored hours" and claims nothing.
+
+Verified live, both branches at once: **📍 Home — "learning this location, 44 scored hours"**
+(refusing to claim) while **New York — "67° adjusted — the forecast runs 1.6 °F cold here"**,
+tooltip reading *423 scored hours, truth from nws-obs, mean signed error −0.86 °C, standard
+error 0.07 °C*. Bias is a temperature DIFFERENCE, so it converts ×9/5 with no offset — the
+units rule from §11.8 doing its job in a new place.
+
+No consumer weather app does this, for a structural reason: none of them keep receipts.

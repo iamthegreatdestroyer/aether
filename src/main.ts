@@ -31,6 +31,7 @@ import { buildMarineDialog, renderMarine } from './ui/marinePanel';
 import { buildTrailsDialog, renderTrails } from './ui/trailsPanel';
 import { fetchAlertsForPoint } from './data/alerts';
 import { reverseNameSoon } from './data/places';
+import { personalNowcast } from './data/nowcast';
 import { AlertsLayer } from './layers/alerts';
 import { FiresLayer } from './layers/fires';
 import { LightningLayer } from './layers/lightning';
@@ -464,6 +465,14 @@ async function hydrateLocation(loc: SavedLocation): Promise<void> {
     }
     // Truth side: capture whatever observations exist for this location, then score.
     await captureObservations(loc).catch(() => []);
+
+    // The Personal Nowcast, read AFTER the scorer has run on this hydrate: the receipts it
+    // just wrote are part of the evidence. Failure leaves the line absent, never the card
+    // broken — a missing correction is the honest state on a fresh install.
+    void personalNowcast(key, data.current.temperature_2m)
+      .then((nowcast) => setCardState(loc, { nowcast }))
+      .catch(() => undefined);
+
     // "Is this weird?" — today's forecast high/low vs 85 years of ERA5 at this point.
     // First call per location downloads ~162 KB of climatology; every call after reads
     // IndexedDB. Failure leaves the chip absent, never the card broken.

@@ -604,3 +604,18 @@ html, body {
 .plane-photo img { width: 100%; border-radius: 6px; display: block; }
 .plane-photo a { font-size: 10px; color: var(--muted); text-decoration: none; display: block; margin-top: 3px; }
 .plane-photo a:hover { color: var(--accent); }
+
+/* ---- Personal Nowcast: the forecast corrected by its own receipts ---- */
+.nowcast {
+  margin: 2px 0 6px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.nowcast.is-corrected {
+  color: var(--text);
+  border-left: 2px solid var(--accent);
+  padding-left: 7px;
+}
+.nowcast.is-corrected b { color: var(--accent); }
+.nowcast-quiet { font-style: italic; }
