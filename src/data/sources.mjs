@@ -34,7 +34,11 @@ export const SOURCES = [
       'https://api.open-meteo.com/v1/forecast?latitude=40.7&longitude=-74.0&hourly=temperature_2m',
     tier: 'A',
     cors: 'open',
-    expectStatus: [200],
+    // 429 is a throttle, not a changed contract. The free tier rate-limits by
+    // IP, and CI runs from a shared GitHub egress that many projects hit —
+    // measured 2026-08-29, a 429 here blocked a deploy while the endpoint was
+    // serving normally. Same treatment donki and ecmwf-opendata already get.
+    expectStatus: [200, 429],
     license: 'Data CC BY 4.0; hosted free tier is non-commercial only',
     attribution: 'Weather data by Open-Meteo.com',
     attributionUrl: 'https://open-meteo.com/',
