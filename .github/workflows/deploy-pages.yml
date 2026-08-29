@@ -58,6 +58,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+                # Start from what is LIVE, not from what is committed. Without this,
+      # "deploying last-known-good" meant the repo's dev snapshots — measured
+      # 2026-08-29, one failed FIRMS fetch republished 08-18 data over 08-27
+      # data and the smoke panel advertised the older date. Each file states
+      # its own build time, so only genuinely newer deployed copies replace
+      # committed ones; stdlib only, and never fatal.
+      - run: python scripts/seed_deployed_data.py
       # eccodes: the divergence lane's GRIB decoder — ECMWF packs with CCSDS (template
       # 5.42), beyond the pure-Python decoder. Linux wheels bundle the native library.
       - run: pip install numpy pillow eccodes
