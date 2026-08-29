@@ -243,6 +243,18 @@ const CME_WINDOW_DAYS = 7;
 const CME_FAIL_TTL_MS = 10 * 60 * 1000;
 let cmeFailedAt = 0;
 
+/**
+ * Hard deadline on the whole DONKI attempt, retries included. The space panel
+ * renders only when every chain member has settled, and DONKI is the one
+ * member that fails SLOWLY: measured 2026-08-29, a struggling server took
+ * 19.3 s to produce each 503, which through the fetcher's three retries held
+ * "Loading the chain…" for ~97 s — an indefinite spinner to anyone watching.
+ * The other chain members settle in ~1 s, so the deadline bounds the panel's
+ * worst case at ~12 s while leaving the healthy path (~1-3 s) untouched.
+ * On deadline the negative cache arms exactly as for any other failure.
+ */
+const CME_DEADLINE_MS = 12_000;
+
 export async function fetchCmeOutlook(): Promise<CmeOutlook> {
   const cached = await dbGet<CmeCache>(STORE_LATEST, 'cme1');
   if (cached && Date.now() - cached.fetchedAt < CME_TTL_MS) return cached.outlook;
@@ -257,10 +269,21 @@ export async function fetchCmeOutlook(): Promise<CmeOutlook> {
   const day = (d: Date) => d.toISOString().slice(0, 10);
   let sims: EnlilSim[];
   try {
-    sims = await fetchJson<EnlilSim[]>(
+    const fetchP = fetchJson<EnlilSim[]>(
       'donki',
       `${s.baseUrl}/WSAEnlilSimulations?startDate=${day(start)}&endDate=${day(end)}&api_key=DEMO_KEY`,
     );
+    const deadline = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error(`DONKI over deadline (${CME_DEADLINE_MS} ms)`)),
+        CME_DEADLINE_MS,
+      );
+    });
+    sims = await Promise.race([fetchP, deadline]);
+    // If the losing fetch eventually resolves, its retries stop on their own;
+    // its eventual rejection lands on a raced-out promise and must not become
+    // an unhandled rejection.
+    fetchP.catch(() => {});
   } catch (err) {
     cmeFailedAt = Date.now();
     throw err;
