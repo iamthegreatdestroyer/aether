@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import csv
 import io
+import contextlib
 import json
+import socket
 import sys
 import time
 import urllib.request
@@ -33,18 +35,48 @@ BIN_DEG = 0.25
 RETRY_DELAYS_S = [5, 20, 60]
 
 
+@contextlib.contextmanager
+def ipv4_only():
+    """Resolve IPv4 only, for the length of the block.
+
+    FIRMS gained an AAAA record between 2026-08-27 and 08-29, and the deploy
+    runner's egress cannot reach it: every attempt died instantly with
+    "[Errno 101] Network is unreachable", so all four retries burned ten
+    minutes re-trying an address family that cannot work. The host answers
+    fine over IPv4 (198.118.194.34) from every other machine tested.
+    """
+    real = socket.getaddrinfo
+
+    def v4(host, port, family=0, type=0, proto=0, flags=0):  # noqa: A002
+        return real(host, port, socket.AF_INET, type, proto, flags)
+
+    socket.getaddrinfo = v4
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = real
+
+
 def fetch() -> str:
     last: Exception | None = None
     for attempt, delay in enumerate([0, *RETRY_DELAYS_S]):
         if delay:
             time.sleep(delay)
+        # First attempt uses the system's own address selection; if that
+        # fails, every retry pins IPv4. Retrying a network that is
+        # unreachable teaches nothing, and this way the fix does not depend
+        # on the diagnosis being exactly right: when IPv6 works, the first
+        # attempt succeeds and this never engages.
+        force_v4 = attempt > 0
         try:
             req = urllib.request.Request(URL, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=180) as r:
-                return r.read().decode("utf-8", errors="replace")
+            with ipv4_only() if force_v4 else contextlib.nullcontext():
+                with urllib.request.urlopen(req, timeout=180) as r:
+                    return r.read().decode("utf-8", errors="replace")
         except Exception as e:  # noqa: BLE001
             last = e
-            print(f"  attempt {attempt + 1} failed: {e}", file=sys.stderr)
+            how = " (IPv4 forced)" if force_v4 else ""
+            print(f"  attempt {attempt + 1}{how} failed: {e}", file=sys.stderr)
     raise RuntimeError(f"FIRMS fetch failed after retries: {last}")
 
 
