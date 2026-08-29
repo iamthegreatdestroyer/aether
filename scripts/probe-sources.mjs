@@ -63,7 +63,19 @@ async function probe(src) {
     const problems = [];
 
     if (!src.expectStatus.includes(res.status)) {
-      problems.push(`status ${res.status}, contract expects ${src.expectStatus.join('/')}`);
+      // A 5xx is the upstream having a bad day, not a change in what the
+      // source promises: the contract categories that matter (moved = 404,
+      // policy = 403, schema/CORS on success) all answer BELOW 500. Label
+      // server errors as unreachable so the deploy gate's --soft-unreachable
+      // treats them like a refused connection — which is what they are,
+      // informationally. Felt live 2026-08-27..29: DONKI 503s failed four
+      // consecutive scheduled deploys and froze every data snapshot for two
+      // days over a source the app itself degrades around in one line.
+      // The strict daily audit still reports them loudly either way.
+      const label = res.status >= 500 ? 'unreachable: server error' : 'status';
+      problems.push(
+        `${label} ${res.status}, contract expects ${src.expectStatus.join('/')}`,
+      );
     }
 
     // CORS is only checkable on success: error paths legitimately omit the header (measured
