@@ -31,9 +31,6 @@
           "url": "https://api.met.no/*"
         },
         {
-          "url": "https://api.nasa.gov/*"
-        },
-        {
           "url": "https://api.open-meteo.com/*"
         },
         {
@@ -56,6 +53,9 @@
         },
         {
           "url": "https://aviationweather.gov/*"
+        },
+        {
+          "url": "https://ccmc.gsfc.nasa.gov/*"
         },
         {
           "url": "https://celestrak.org/*"

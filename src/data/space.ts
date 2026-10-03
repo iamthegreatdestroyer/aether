@@ -231,12 +231,14 @@ interface CmeCache {
   outlook: CmeOutlook;
 }
 
-const CME_TTL_MS = 3 * 60 * 60 * 1000; // DEMO_KEY is 10 req/h per IP — cache hard
+const CME_TTL_MS = 3 * 60 * 60 * 1000; // Enlil runs land a few times a day; a courtesy cache
 const CME_WINDOW_DAYS = 7;
 
 /**
- * CME watch — WSA-Enlil simulations from NASA DONKI, panel-open only, 3 h cache. The
- * DEMO_KEY quota (measured: 10/h per IP) makes the cache a requirement, not an optimisation.
+ * CME watch — WSA-Enlil simulations from NASA DONKI, panel-open only, 3 h cache. Since the
+ * 2026-09-30 move to the CCMC host the endpoint is keyless with no published quota, so the
+ * cache is a courtesy to a public service rather than a requirement (it was one while this
+ * rode api.nasa.gov's DEMO_KEY, measured at 10 requests/hour per IP).
  * "Quiet" (no Earth-directed run in the window) is a real answer and renders as one;
  * a thrown fetch error is a different answer and renders as "unavailable".
  */
@@ -258,7 +260,7 @@ const CME_DEADLINE_MS = 12_000;
 export async function fetchCmeOutlook(): Promise<CmeOutlook> {
   const cached = await dbGet<CmeCache>(STORE_LATEST, 'cme1');
   if (cached && Date.now() - cached.fetchedAt < CME_TTL_MS) return cached.outlook;
-  // Negative cache: a DONKI quota 429 lasts the hour — without this, EVERY panel open
+  // Negative cache: a failing DONKI stays failing for a while — without this, EVERY panel open
   // burns the scheduler's full 21 s backoff before rendering "unavailable" (felt live
   // 2026-08-18 when the probe runs exhausted the local IP's quota mid-verification).
   if (Date.now() - cmeFailedAt < CME_FAIL_TTL_MS) throw new Error('DONKI recently unavailable');
@@ -271,7 +273,7 @@ export async function fetchCmeOutlook(): Promise<CmeOutlook> {
   try {
     const fetchP = fetchJson<EnlilSim[]>(
       'donki',
-      `${s.baseUrl}/WSAEnlilSimulations?startDate=${day(start)}&endDate=${day(end)}&api_key=DEMO_KEY`,
+      `${s.baseUrl}/WSAEnlilSimulations?startDate=${day(start)}&endDate=${day(end)}`,
     );
     const deadline = new Promise<never>((_, reject) => {
       setTimeout(

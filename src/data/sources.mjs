@@ -386,24 +386,30 @@ export const SOURCES = [
     id: 'donki',
     name: 'NASA DONKI (CCMC)',
     role: 'CME watch — WSA-Enlil Earth-arrival predictions for the Solar Chain',
-    baseUrl: 'https://api.nasa.gov/DONKI',
+    baseUrl: 'https://ccmc.gsfc.nasa.gov/DONKI-API/get',
     probeUrl:
-      'https://api.nasa.gov/DONKI/WSAEnlilSimulations?startDate=2024-05-08&endDate=2024-05-12&api_key=DEMO_KEY',
+      'https://ccmc.gsfc.nasa.gov/DONKI-API/get/WSAEnlilSimulations?startDate=2024-05-08&endDate=2024-05-12',
     tier: 'A',
     cors: 'open',
-    expectStatus: [200, 429],
+    expectStatus: [200],
     minBytes: 1000,
+    // A news page must never again pass as data: see the 2026-09-30 migration in notes.
+    mustNotContain: '<html',
     license: 'US Government work, public domain',
     attribution: 'NASA CCMC / DONKI',
-    rateLimit: 'DEMO_KEY: measured X-Ratelimit-Limit 10/h per IP — panel-open only, 3 h cache',
+    rateLimit: 'no published quota on the CCMC host; the app still fetches on panel open only, 3 h cache',
     notes:
-      'DEMO_KEY is NASA\'s PUBLISHED public demo key, not a secret — committing it is the ' +
-      'documented personal-use path; a real key is a config upgrade, not a design change. ' +
-      '429 tolerated in the probe because the quota is per-IP and CI runners share IP pools ' +
-      'with every other DEMO_KEY user. Probe window is pinned to the 2024 Gannon storm so ' +
-      'its rich response shape never goes stale. Verified 2026-08-18: CORS *, ' +
-      'estimatedShockArrivalTime + kp_18/90/135/180 present on Earth-directed runs.',
-    verifiedAt: '2026-08-18',
+      'MIGRATED 2026-09-30 (CCMC announcement, ccmc.gsfc.nasa.gov/news/major-updates): the ' +
+      'API moved from api.nasa.gov/DONKI to ccmc.gsfc.nasa.gov/DONKI-API/get, with input ' +
+      'parameters and response formats unchanged. The old URL now answers 301 to that HTML ' +
+      'news page. The probe followed the redirect, saw a 200 with 59 KB and no CORS header, ' +
+      'and reported CORS DISAPPEARED, which blocked every scheduled deploy for three days ' +
+      'while the wind, fire and marine snapshots went stale. Measured 2026-10-03: CORS *, ' +
+      'application/json, KEYLESS, so the DEMO_KEY (and its 10/h per-IP quota, the cause of ' +
+      'the earlier 429 handling) is gone. mustNotContain guards the failure mode the 2xx ' +
+      'status check could not see: a web page standing in for the API. Probe window is ' +
+      'pinned to the 2024 Gannon storm so its rich response shape never goes stale.',
+    verifiedAt: '2026-10-03',
   },
   {
     id: 'firms',

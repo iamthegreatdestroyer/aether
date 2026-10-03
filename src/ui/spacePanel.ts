@@ -82,7 +82,7 @@ export async function renderSpace(
 
   // ---- CME watch: three honest states — incoming, quiet, and unavailable
   const cmeHtml = (() => {
-    if (cme === 'error') return `<p class="cme-row muted">CME watch unavailable (DONKI unreachable or over quota)</p>`;
+    if (cme === 'error') return `<p class="cme-row muted">CME watch unavailable (NASA DONKI did not answer)</p>`;
     const o = cme as CmeOutlook;
     if (!o.arrival) {
       return `<p class="cme-row">quiet — no Earth-directed CME in the last ${o.windowDays} days of Enlil runs</p>`;
