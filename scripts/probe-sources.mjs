@@ -62,6 +62,17 @@ async function probe(src) {
 
     const problems = [];
 
+    // A cross-host redirect means the final response is NOT the contract's response, so
+    // every check below would be judging the wrong server. This is the failure that froze
+    // the data refresh for three days (2026-09-30): NASA moved DONKI and the old URL began
+    // answering 301 to an HTML news page. The probe followed it, read a 200 from the news
+    // server, and reported "CORS header DISAPPEARED" — a diagnosis that sent the first
+    // investigation down the wrong road. Say what actually happened instead: the URL moved.
+    // Same-host redirects (http -> https, trailing slash) are ordinary and ignored.
+    const probeHost = new URL(src.probeUrl).host;
+    const finalHost = new URL(res.url || src.probeUrl).host;
+    const moved = res.redirected && finalHost !== probeHost;
+
     if (!src.expectStatus.includes(res.status)) {
       // A 5xx is the upstream having a bad day, not a change in what the
       // source promises: the contract categories that matter (moved = 404,
@@ -108,6 +119,14 @@ async function probe(src) {
       if (head.includes(src.mustNotContain)) {
         problems.push(`body contains forbidden marker "${src.mustNotContain}"`);
       }
+    }
+
+    if (moved) {
+      problems.length = 0; // those findings describe the redirect target, not the contract
+      problems.push(
+        `moved: ${probeHost} redirects to ${finalHost} (final status ${res.status}) — ` +
+          `update src/data/sources.mjs to the new location; the response below this URL is not the contract's`,
+      );
     }
 
     return {
