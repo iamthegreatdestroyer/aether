@@ -6,7 +6,7 @@ backend, no accounts, no ads.**
 
 ![Aether desktop — satellite, radar, wind and live alerts over the Gulf](docs/img/desktop.png)
 
-> **Status: v0.3.0 — one app, four subscriptions replaced.** Live at
+> **Status: v0.3.1 — one app, four subscriptions replaced.** Live at
 > [iamthegreatdestroyer.github.io/aether](https://iamthegreatdestroyer.github.io/aether/); also
 > an installable PWA and a Tauri Windows desktop app whose Rust-side transport reaches the
 > sources browsers are refused.
