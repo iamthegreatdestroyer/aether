@@ -19,6 +19,7 @@ import {
   sampleAurora,
 } from '../data/space';
 import type { CmeOutlook } from '../data/space';
+import { cmeLedgerSentences, loadCmeLedger } from '../data/cmeLedger';
 import { balloonTruth } from '../data/sondes';
 import { fetchJson } from '../data/fetcher';
 import { source } from '../data/sources.mjs';
@@ -73,11 +74,12 @@ export async function renderSpace(
       <span class="sw-meta">DSCOVR/ACE via SWPC · ${w.time.slice(11, 16)}Z</span>`;
   };
 
-  const [kpSeries, wind, ovationMeta, cme] = await Promise.all([
+  const [kpSeries, wind, ovationMeta, cme, cmeLedger] = await Promise.all([
     fetchKpSeries().catch(() => null),
     fetchSolarWindNow().catch(() => null),
     fetchOvation().catch(() => null),
     fetchCmeOutlook().catch(() => 'error' as const),
+    loadCmeLedger(),
   ]);
 
   // ---- CME watch: three honest states — incoming, quiet, and unavailable
@@ -97,7 +99,20 @@ export async function renderSpace(
     return `<p class="cme-row cme-incoming">⚡ Earth-directed CME — est. shock arrival
       <b>${o.arrival.slice(0, 16).replace('T', ' ')}Z</b> (${eta}) · predicted ${kp}</p>
       <p class="cme-note">WSA-Enlil run ${o.simIssued ? o.simIssued.slice(0, 16).replace('T', ' ') + 'Z' : '—'} ·
-      arrival predictions typically carry ±7 h</p>`;
+      measured error in the track record below</p>`;
+  })();
+
+  // ---- CME track record: how the predictions above have fared. Silent when the baked
+  // ledger is absent or has nothing scored — a missing track record is not a bad one.
+  const ledgerHtml = (() => {
+    if (!cmeLedger) return '';
+    const sentences = cmeLedgerSentences(cmeLedger);
+    if (!sentences.length) return '';
+    const s = cmeLedger.summary;
+    return `<p class="cme-row">${sentences.join(' ')}</p>
+      <p class="cme-note">${s.scored} predictions scored, ${s.unconfirmed} with no confirmed arrival
+      (not necessarily false alarms). Each CME is scored on its latest Enlil run. Updated
+      ${cmeLedger.builtAt.slice(0, 10)}.</p>`;
   })();
 
   const kp = kpSeries?.readings ?? [];
@@ -182,6 +197,7 @@ export async function renderSpace(
 
     <h3>CME watch <span class="kp-note">NASA CCMC / DONKI</span></h3>
     ${cmeHtml}
+    ${ledgerHtml ? `<h3>CME track record <span class="kp-note">did the arrival predictions hold up?</span></h3>${ledgerHtml}` : ''}
 
     <h3>Kp — last 3 days <span class="kp-note">${kpSeries?.sourceLabel ?? ''}${kpSeries?.official ? ' ✓' : ''}</span></h3>
     <div class="kp-strip">${kpBars}</div>

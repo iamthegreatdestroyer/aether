@@ -416,7 +416,9 @@ export const SOURCES = [
       'application/json, KEYLESS, so the DEMO_KEY (and its 10/h per-IP quota, the cause of ' +
       'the earlier 429 handling) is gone. mustNotContain guards the failure mode the 2xx ' +
       'status check could not see: a web page standing in for the API. Probe window is ' +
-      'pinned to the 2024 Gannon storm so its rich response shape never goes stale.',
+      'pinned to the 2024 Gannon storm so its rich response shape never goes stale. ' +
+      'ALSO read by CI (scripts/build_cme_ledger.py, Tier B) for IPS?location=Earth and GST to ' +
+      'score past Enlil predictions against observed shocks and storms; max query window 60 days.',
     verifiedAt: '2026-10-03',
   },
   {

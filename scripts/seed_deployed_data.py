@@ -57,6 +57,7 @@ GROUPS: list[dict] = [
     {"anchor": "data/wind/850.json", "assets": ["data/wind/850.png"]},
     {"anchor": "data/fires/latest.json", "assets": []},
     {"anchor": "data/storms/ledger.json", "assets": []},
+    {"anchor": "data/space/cme_ledger.json", "assets": []},
     {"anchor": "data/marine/stations.json", "assets": []},
     {"anchor": "data/marine/buoys.json", "assets": []},
     # Divergence textures are named by the index itself; resolved at runtime.
