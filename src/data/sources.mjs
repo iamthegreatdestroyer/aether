@@ -90,7 +90,11 @@ export const SOURCES = [
       'https://archive-api.open-meteo.com/v1/archive?latitude=40.7&longitude=-74.0&start_date=2024-08-01&end_date=2024-08-07&daily=temperature_2m_max',
     tier: 'A',
     cors: 'open',
-    expectStatus: [200],
+    // 429 is a throttle, not a changed contract. Every Open-Meteo sub-domain shares one
+    // per-IP free-tier limit and CI runs from a shared GitHub egress. 2026-08-29 fixed this
+    // for open-meteo ALONE; on 2026-09-28 the strict daily audit went red on this sibling for
+    // exactly the same reason. Same treatment as open-meteo, donki and ecmwf-opendata.
+    expectStatus: [200, 429],
     minBytes: 200,
     license: 'Data CC BY 4.0 (ERA5: Copernicus/ECMWF via Open-Meteo); free tier non-commercial',
     attribution: 'Weather data by Open-Meteo.com',
@@ -114,7 +118,11 @@ export const SOURCES = [
       'https://ensemble-api.open-meteo.com/v1/ensemble?latitude=40.7&longitude=-74.0&hourly=temperature_2m&models=gfs_seamless&forecast_days=1',
     tier: 'A',
     cors: 'open',
-    expectStatus: [200],
+    // 429 is a throttle, not a changed contract. Every Open-Meteo sub-domain shares one
+    // per-IP free-tier limit and CI runs from a shared GitHub egress. 2026-08-29 fixed this
+    // for open-meteo ALONE; on 2026-09-28 the strict daily audit went red on this sibling for
+    // exactly the same reason. Same treatment as open-meteo, donki and ecmwf-opendata.
+    expectStatus: [200, 429],
     minBytes: 500,
     license: 'Data CC BY 4.0; free tier non-commercial',
     attribution: 'Weather data by Open-Meteo.com',
@@ -573,7 +581,11 @@ export const SOURCES = [
       'https://marine-api.open-meteo.com/v1/marine?latitude=27.3&longitude=-83&hourly=wave_height&forecast_days=1',
     tier: 'A',
     cors: 'open',
-    expectStatus: [200],
+    // 429 is a throttle, not a changed contract. Every Open-Meteo sub-domain shares one
+    // per-IP free-tier limit and CI runs from a shared GitHub egress. 2026-08-29 fixed this
+    // for open-meteo ALONE; on 2026-09-28 the strict daily audit went red on this sibling for
+    // exactly the same reason. Same treatment as open-meteo, donki and ecmwf-opendata.
+    expectStatus: [200, 429],
     minBytes: 100,
     license: 'CC BY 4.0',
     attribution: 'Open-Meteo.com',
