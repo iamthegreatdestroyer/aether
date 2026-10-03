@@ -105,6 +105,23 @@ const nativeReady = initNativeTransport().then(async (native) => {
       air = `FAILED: ${err instanceof Error ? err.message : String(err)}`;
     }
 
+    // A live source the BROWSER path must keep reaching. DONKI is not a native-transport
+    // source, so the checks above never touched it — which is how the 2026-09-30 move (a
+    // 301 to an HTML page, CORS gone) could have gone unseen inside the desktop build. Same
+    // rule as the ordinary-source assertion: a self-check that only tests the special paths
+    // certifies the special paths, not the app. `fresh` bypasses the 3 h cache so this
+    // measures the endpoint rather than IndexedDB.
+    let cme: string;
+    try {
+      const { fetchCmeOutlook } = await import('./data/space');
+      const o = await fetchCmeOutlook({ fresh: true });
+      cme =
+        `ok ${o.arrival ? `arrival ${o.arrival}` : 'quiet'} — ` +
+        `${o.earthDirected} Earth-directed runs / ${o.windowDays} d`;
+    } catch (err) {
+      cme = `FAILED: ${err instanceof Error ? err.message : String(err)}`;
+    }
+
     const kp = await fetchKpSeries();
     // The second cheque: London sits outside NWS coverage, so its ledger truth depends on
     // this exact path. captureMetar only reads — the obs store is untouched by a self-check.
@@ -120,6 +137,7 @@ const nativeReady = initNativeTransport().then(async (native) => {
         nativeTransport: true,
         ordinarySource: ordinary,
         aircraft: air,
+        cme,
         kpSource: kp.sourceLabel,
         kpOfficial: kp.official,
         kpLatest: kp.readings[kp.readings.length - 1] ?? null,

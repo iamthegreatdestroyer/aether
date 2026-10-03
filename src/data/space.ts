@@ -257,13 +257,21 @@ let cmeFailedAt = 0;
  */
 const CME_DEADLINE_MS = 12_000;
 
-export async function fetchCmeOutlook(): Promise<CmeOutlook> {
-  const cached = await dbGet<CmeCache>(STORE_LATEST, 'cme1');
+/**
+ * `fresh` skips BOTH caches and goes to the network. It exists for the desktop boot
+ * self-check: a check that can be answered from IndexedDB certifies the cache, not the
+ * endpoint, and an endpoint that quietly died (DONKI moved on 2026-09-30) would hide behind
+ * the 3 h cache for three hours per boot. The panel calls this with no argument.
+ */
+export async function fetchCmeOutlook(opts: { fresh?: boolean } = {}): Promise<CmeOutlook> {
+  const cached = opts.fresh ? undefined : await dbGet<CmeCache>(STORE_LATEST, 'cme1');
   if (cached && Date.now() - cached.fetchedAt < CME_TTL_MS) return cached.outlook;
   // Negative cache: a failing DONKI stays failing for a while — without this, EVERY panel open
   // burns the scheduler's full 21 s backoff before rendering "unavailable" (felt live
   // 2026-08-18 when the probe runs exhausted the local IP's quota mid-verification).
-  if (Date.now() - cmeFailedAt < CME_FAIL_TTL_MS) throw new Error('DONKI recently unavailable');
+  if (!opts.fresh && Date.now() - cmeFailedAt < CME_FAIL_TTL_MS) {
+    throw new Error('DONKI recently unavailable');
+  }
 
   const s = source('donki');
   const end = new Date();
