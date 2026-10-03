@@ -1367,3 +1367,16 @@ client `src/data/cmeLedger.ts`, panel section "CME track record".
   measurement.
 - CI step degrades to last-known-good; seeder anchors on `builtAt`. Shipped in 74658a7, CI green,
   live artifact verified.
+
+### 17.1 Aircraft route plausibility (2026-10-03)
+
+adsbdb maps a callsign to ONE scheduled leg; airlines reuse flight numbers across legs and days.
+Cross-checked against live positions (101 airborne flights, two regions, 2026-10-03): only
+roughly a quarter were on the returned route, most >400 km off (not borderline). DAL482 was
+listed JFK->ATL over Tampa Bay heading WSW; a Southwest 737 parked at Fort Myers was listed
+LAS->SJC. `routeFit()` (src/data/flight.ts) tests detour vs great circle (> max(150 km, 15 %)),
+heading vs destination (> 110 deg when >200 km out), and "at one of the two airports?" on the
+ground. The popup shows "route unverified" with the scheduled leg demoted, instead of stating
+it as fact. Verified in the desktop build (SWA1136 PWM->BWI and MXY1400 OGS->RDU flagged while
+plausible routes such as PHL->FLL, BDL->MYR, SDQ->JFK, CDG->MEX stay plain). Aircraft positions
+are desktop-only, so this reaches users with the next MSI, not the web deploy.

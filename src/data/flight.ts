@@ -140,8 +140,7 @@ const finite = (v: unknown): number | null => (typeof v === 'number' && Number.i
  * Measured 2026-10-03: DAL482 is listed JFK -> ATL while the aircraft was over Tampa Bay at
  * 23,000 ft heading west-southwest — 1,100 km off that track. The popup stated the route as fact.
  *
- * 'unknown' = not enough to judge (no coordinates, on the ground, or still near an end);
- * the caller shows the route normally then. 'mismatch' = say it is the SCHEDULED route.
+ * 'unknown' = not enough to judge (the route has no coordinates); the caller shows it normally. 'mismatch' = the popup says route unverified.
  *   - detour: an aircraft on its route has d(origin,a) + d(a,dest) close to d(origin,dest).
  *     Allow 15 % or 150 km (whichever is larger) for weather, holds and vectoring.
  *   - heading: well away from the destination yet flying clearly away from it.
@@ -153,7 +152,15 @@ export function routeFit(
   ac: { lat: number; lon: number; track: number | null; gs: number | null; onGround: boolean },
 ): RouteFit {
   if (r.originLat === null || r.originLon === null || r.destLat === null || r.destLon === null) return 'unknown';
-  if (ac.onGround) return 'unknown';
+  // On the ground the only honest test is "are you at one of the two airports?". Seen live
+  // 2026-10-03: a Southwest 737 parked at Fort Myers was listed LAS -> SJC.
+  if (ac.onGround) {
+    const nearest = Math.min(
+      haversineKm(r.originLat, r.originLon, ac.lat, ac.lon),
+      haversineKm(r.destLat, r.destLon, ac.lat, ac.lon),
+    );
+    return nearest <= 60 ? 'ok' : 'mismatch';
+  }
   const direct = haversineKm(r.originLat, r.originLon, r.destLat, r.destLon);
   const viaAc =
     haversineKm(r.originLat, r.originLon, ac.lat, ac.lon) + haversineKm(ac.lat, ac.lon, r.destLat, r.destLon);
