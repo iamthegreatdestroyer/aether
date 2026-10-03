@@ -1290,3 +1290,41 @@ error 0.07 °C*. Bias is a temperature DIFFERENCE, so it converts ×9/5 with no 
 units rule from §11.8 doing its job in a new place.
 
 No consumer weather app does this, for a structural reason: none of them keep receipts.
+
+## 16. The DONKI migration, and what it taught the gate — 2026-10-03
+
+**Incident.** From 2026-09-30 every scheduled deploy failed; the baked wind, fire, marine and
+divergence data sat ~70 h stale and the Space panel's CME watch went dark. The CI log said
+"CORS header DISAPPEARED" for DONKI. That was a misdiagnosis delivered by our own probe: NASA CCMC
+had MOVED the API (announcement effective 2026-09-30, `ccmc.gsfc.nasa.gov/news/major-updates`),
+and the old `api.nasa.gov/DONKI` URL began answering `301` to an HTML news page. The probe
+followed the redirect, read a 200 from the news server, and judged THAT server's headers.
+
+**Fix (`2665708`).** Followed the migration to `ccmc.gsfc.nasa.gov/DONKI-API/get` — keyless, CORS
+`*`, JSON — which also retires the `DEMO_KEY` and its 10/h per-IP quota (the root of the earlier
+429 handling). `mustNotContain: '<html'` added: a web page standing in for an API is the one thing
+a status check cannot see. Verified in the browser (request to the CCMC host, 200 in 276 ms, honest
+"quiet" CME state) and by every data artifact rebuilding within minutes of the deploy.
+
+**Three changes to the gate, because the same upstream has now caused three outages**
+(Aug 18 quota 429s, Aug 27–29 503s, Sep 30 migration):
+
+1. **A cross-host redirect is a MOVED URL.** The probe now says so — "moved: api.nasa.gov redirects
+   to ccmc.gsfc.nasa.gov … update sources.mjs" — and discards the downstream CORS/body findings,
+   which describe the redirect target rather than the contract. Verified two ways: all 40 real
+   sources still pass (no legitimate cross-host redirects exist), and an isolated reproduction of
+   the old DONKI entry now yields the correct sentence. It stays fatal under `--soft-unreachable`:
+   a moved URL is drift, not an outage. Same-host redirects (http→https) are ignored.
+2. **The 6-hourly data cron no longer blocks on contract drift.** Reverses §11.7's "drift is fatal
+   everywhere". The gate protects what we SHIP; on `schedule` the code is the code that already
+   passed it, and the run's whole job is refreshing data. Blocking it cannot improve the app and
+   guarantees stale wind/fires/tides — it froze the cron for ~5 days across two incidents. Fatal
+   remains for `push` and `workflow_dispatch`; the strict daily "Endpoint contract" audit still goes
+   red; and a `::warning::` step flags drift on the scheduled run itself. NOT verifiable locally: the
+   scheduled branch is first exercised by a real cron run.
+3. **v0.3.1** re-cuts the release (see below).
+
+**Why a re-release, again.** `v0.3.0` (Aug 18) is 18 commits behind main; its desktop MSI predates
+the Personal Nowcast, airframe photos, self-naming locations, the coverage-probing satellite layer,
+the Aug 29 reliability fixes — and still calls the dead DONKI URL, so its CME watch is dark. A tag
+freezes an artifact; fixing main does nothing for the one on the Releases page (the lesson from v0.2.0).

@@ -43,10 +43,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      # The contract must hold before a deploy — same guards as the daily probe.
-      # Contract drift still blocks the deploy; a third party unreachable from this
-      # runner does not — that is what the strict daily audit is for.
-      - run: node scripts/probe-sources.mjs --tier A --soft-unreachable
+      # The contract gate protects what we SHIP, so it is fatal when the CODE changed (push)
+      # or a human asked for a deploy (workflow_dispatch). It is deliberately NOT fatal on the
+      # 6-hourly SCHEDULE: that run ships the same code that already passed this gate, and its
+      # whole job is refreshing the baked data. Blocking it over one drifted source cannot make
+      # the app any better and guarantees stale wind, fires and tides. It has frozen the data
+      # cron twice — 2026-08-27..29 (DONKI 503s) and 2026-09-30..10-03 (DONKI moved, ~70 h
+      # stale) — both times over a source the app itself degrades around in one line.
+      # The alarm is not lost: the strict daily "Endpoint contract" audit still goes red, and
+      # the warning step below puts the drift on this run too. A third party merely unreachable
+      # from the runner never blocks either way (--soft-unreachable).
+      - id: probe
+        run: node scripts/probe-sources.mjs --tier A --soft-unreachable
+        continue-on-error: ${{ github.event_name == 'schedule' }}
+      - name: Contract drift on a scheduled refresh (data refreshed anyway)
+        if: ${{ github.event_name == 'schedule' && steps.probe.outcome == 'failure' }}
+        run: |
+          echo "::warning title=Contract drift::The endpoint probe failed on a scheduled refresh. Data was rebuilt and deployed anyway; the strict daily Endpoint contract audit owns the alarm. Run: node scripts/probe-sources.mjs --include-polite"
       - run: node scripts/gen-attribution.mjs --check
       # The Tauri HTTP allowlist is derived from the same contract — a hand-edited scope is
       # how the desktop build silently blocked 20 of 22 hosts after P6.
