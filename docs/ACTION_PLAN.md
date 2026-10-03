@@ -1328,3 +1328,22 @@ a status check cannot see. Verified in the browser (request to the CCMC host, 20
 the Personal Nowcast, airframe photos, self-naming locations, the coverage-probing satellite layer,
 the Aug 29 reliability fixes — and still calls the dead DONKI URL, so its CME watch is dark. A tag
 freezes an artifact; fixing main does nothing for the one on the Releases page (the lesson from v0.2.0).
+
+### 16.1 Follow-ups, same day
+
+- **Open-Meteo siblings (`79b4dec`).** The 2026-09-28 strict-audit red was `open-meteo-archive`
+  answering 429. The Aug 29 throttle fix had covered `open-meteo` alone; all Open-Meteo
+  sub-domains share one per-IP limit behind a shared CI egress. archive, ensemble and marine now
+  tolerate 429 like their sibling. Body guards still apply only to 2xx.
+- **Desktop self-check exercises the live CME path (`2b35c8f`).** DONKI is not a native-transport
+  source, so the boot self-check never touched it. `fetchCmeOutlook({ fresh: true })` bypasses BOTH
+  caches — otherwise the check would certify IndexedDB, not the endpoint. Tested in both directions:
+  with DONKI blocked the normal call still answers from cache (the masking this guards against) while
+  the fresh call throws; the built binary reports `"cme": "ok quiet — 0 Earth-directed runs / 7 d"`.
+  Deliberately NOT released: it is diagnostics-only, so it rides the next release rather than
+  forcing a v0.3.2 — the v0.3.1 MSI does not contain it.
+- **Soft-gate mechanics verified on a throwaway branch** (since deleted), with the event name swapped
+  for `push`: a failing gate step is masked to success (job green) yet GitHub still records the red
+  `exit code 1` annotation, so the signal survives; `steps.probe.outcome == 'failure'` reads the
+  PRE-masking result, so the warning step fires; later steps run. Remaining unverified: only that a
+  real cron's `github.event_name` is the literal `schedule` — standard, but not yet observed.
