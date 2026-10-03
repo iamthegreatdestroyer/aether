@@ -17,7 +17,7 @@ import { Popup } from 'maplibre-gl';
 import type { Map as MapLibreMap, GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection, Point } from 'geojson';
 import { registerLayer } from './registry';
-import { altLabel, fetchAircraft, fetchAirframePhoto, fetchRoute, isFlightAvailable } from '../data/flight';
+import { altLabel, fetchAircraft, fetchAirframePhoto, fetchRoute, isFlightAvailable, routeFit } from '../data/flight';
 import { haversineKm } from '../data/geo';
 
 const ID = 'aircraft';
@@ -279,8 +279,23 @@ export class AircraftLayer {
         r.originIata && r.destIata
           ? `${r.originIata} → ${r.destIata}`
           : (r.originName ?? '?') + ' → ' + (r.destName ?? '?');
+      // The route is the flight NUMBER's schedule, not this aircraft's flight plan. When the
+      // aircraft is plainly not on that leg, say so instead of stating it as fact.
+      const gs = Number(p['gs']);
+      const fit = routeFit(r, {
+        lat,
+        lon,
+        track: gs >= 0 ? Number(p['track']) : null,
+        gs: gs >= 0 ? gs : null,
+        onGround: p['alt'] === 'ground',
+      });
+      const stale = fit === 'mismatch';
       popup.setHTML(
-        `${base}<br><b>${leg}</b>` +
+        stale
+          ? `${base}<br><span class="route-stale">route unverified</span>` +
+              `<br><span class="fire-popup-ray">this flight number is scheduled ${leg}, but the aircraft is not on that leg ` +
+              `— diverted, or the number flies other legs today</span>`
+          : `${base}<br><b>${leg}</b>` +
           `${r.originName && r.destName ? `<br><span class="fire-popup-ray">${r.originName} → ${r.destName}</span>` : ''}` +
           `${r.airlineName ? `<br><span class="fire-popup-ray">${r.airlineName}</span>` : ''}`,
       );

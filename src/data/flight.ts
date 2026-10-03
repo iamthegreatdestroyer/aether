@@ -23,6 +23,7 @@
 
 import { fetchJson, hasNativeTransport } from './fetcher';
 import { source } from './sources.mjs';
+import { bearingDeg, haversineKm } from './geo';
 
 export interface Aircraft {
   /** ICAO 24-bit address — the only truly stable identity here. */
@@ -119,15 +120,58 @@ export interface FlightRoute {
   airlineName: string | null;
   originIata: string | null;
   originName: string | null;
+  originLat: number | null;
+  originLon: number | null;
   destIata: string | null;
   destName: string | null;
+  destLat: number | null;
+  destLon: number | null;
 }
 
 const routeCache = new Map<string, FlightRoute | null>();
 
+const finite = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/**
+ * Does the aircraft's actual position agree with the route adsbdb names for its callsign?
+ *
+ * adsbdb maps a flight NUMBER to its scheduled leg. That is right until it is not: a diversion,
+ * a re-used number, a ferry or repositioning flight all keep the callsign and change the leg.
+ * Measured 2026-10-03: DAL482 is listed JFK -> ATL while the aircraft was over Tampa Bay at
+ * 23,000 ft heading west-southwest — 1,100 km off that track. The popup stated the route as fact.
+ *
+ * 'unknown' = not enough to judge (no coordinates, on the ground, or still near an end);
+ * the caller shows the route normally then. 'mismatch' = say it is the SCHEDULED route.
+ *   - detour: an aircraft on its route has d(origin,a) + d(a,dest) close to d(origin,dest).
+ *     Allow 15 % or 150 km (whichever is larger) for weather, holds and vectoring.
+ *   - heading: well away from the destination yet flying clearly away from it.
+ */
+export type RouteFit = 'ok' | 'mismatch' | 'unknown';
+
+export function routeFit(
+  r: FlightRoute,
+  ac: { lat: number; lon: number; track: number | null; gs: number | null; onGround: boolean },
+): RouteFit {
+  if (r.originLat === null || r.originLon === null || r.destLat === null || r.destLon === null) return 'unknown';
+  if (ac.onGround) return 'unknown';
+  const direct = haversineKm(r.originLat, r.originLon, r.destLat, r.destLon);
+  const viaAc =
+    haversineKm(r.originLat, r.originLon, ac.lat, ac.lon) + haversineKm(ac.lat, ac.lon, r.destLat, r.destLon);
+  const detourKm = viaAc - direct;
+  if (detourKm > Math.max(150, 0.15 * direct)) return 'mismatch';
+
+  const toDest = haversineKm(ac.lat, ac.lon, r.destLat, r.destLon);
+  if (ac.track !== null && ac.gs !== null && ac.gs >= 150 && toDest > 200) {
+    const want = bearingDeg(ac.lat, ac.lon, r.destLat, r.destLon);
+    const off = Math.abs(((ac.track - want + 540) % 360) - 180);
+    if (off > 110) return 'mismatch';
+  }
+  return 'ok';
+}
+
 /**
  * Where a callsign is going, from adsbdb's route database. Cached forever in-session: a
- * flight number's route does not change mid-flight, and this is a courtesy lookup on a
+ * flight number's SCHEDULED route is stable (whether this aircraft is on it is `routeFit`'s job), and this is a courtesy lookup on a
  * volunteer service, fired only when a person actually clicks a specific aircraft.
  */
 export async function fetchRoute(callsign: string): Promise<FlightRoute | null> {
@@ -142,8 +186,8 @@ export async function fetchRoute(callsign: string): Promise<FlightRoute | null> 
       response?: {
         flightroute?: {
           airline?: { name?: string };
-          origin?: { iata_code?: string; name?: string; municipality?: string };
-          destination?: { iata_code?: string; name?: string; municipality?: string };
+          origin?: { iata_code?: string; name?: string; municipality?: string; latitude?: number; longitude?: number };
+          destination?: { iata_code?: string; name?: string; municipality?: string; latitude?: number; longitude?: number };
         };
       };
     }>('adsbdb', `${source('adsbdb').baseUrl}/callsign/${encodeURIComponent(key)}`);
@@ -156,8 +200,12 @@ export async function fetchRoute(callsign: string): Promise<FlightRoute | null> 
       airlineName: fr.airline?.name ?? null,
       originIata: fr.origin?.iata_code ?? null,
       originName: fr.origin?.municipality ?? fr.origin?.name ?? null,
+      originLat: finite(fr.origin?.latitude),
+      originLon: finite(fr.origin?.longitude),
       destIata: fr.destination?.iata_code ?? null,
       destName: fr.destination?.municipality ?? fr.destination?.name ?? null,
+      destLat: finite(fr.destination?.latitude),
+      destLon: finite(fr.destination?.longitude),
     };
     routeCache.set(key, route);
     return route;

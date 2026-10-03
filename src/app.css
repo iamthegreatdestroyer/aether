@@ -619,3 +619,6 @@ html, body {
 }
 .nowcast.is-corrected b { color: var(--accent); }
 .nowcast-quiet { font-style: italic; }
+
+/* Aircraft popup: a route the aircraft is plainly not flying */
+.route-stale { color: #ffb454; font-weight: 600; }

@@ -638,6 +638,11 @@ export const SOURCES = [
     attribution: 'Route data from adsbdb.com',
     rateLimit: 'courtesy lookup on click only, cached for the session — never polled',
     notes:
+      'MEASURED 2026-10-03: a callsign maps to ONE scheduled leg, but airlines reuse a flight ' +
+      'number across legs and days. Cross-checking 101 airborne flights in two regions against ' +
+      'aircraft position, only roughly a quarter were actually on the returned route (most >400 km off, ' +
+      'not borderline); the popup therefore runs routeFit() and says route unverified when the ' +
+      'aircraft is plainly elsewhere. ' +
       'Queried ONLY when someone clicks a specific aircraft, and cached per callsign for the ' +
       'session: a flight number\'s route does not change mid-flight. Unknown callsigns are ' +
       'cached as null so a miss is never retried in a loop. TIER CORRECTED 2026-08-18: this ' +
