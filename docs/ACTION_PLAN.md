@@ -1347,3 +1347,23 @@ freezes an artifact; fixing main does nothing for the one on the Releases page (
   `exit code 1` annotation, so the signal survives; `steps.probe.outcome == 'failure'` reads the
   PRE-masking result, so the warning step fires; later steps run. Remaining unverified: only that a
   real cron's `github.event_name` is the literal `schedule` — standard, but not yet observed.
+
+## 17. CME track record (2026-10-03)
+
+The Space panel's CME watch now has a **track record**: how NASA's WSA-Enlil arrival predictions
+actually fared. Tier B bake `scripts/build_cme_ledger.py` -> `public/data/space/cme_ledger.json`,
+client `src/data/cmeLedger.ts`, panel section "CME track record".
+
+- **Data**: DONKI WSAEnlilSimulations + IPS (location=Earth) + GST, 365 days in <=59-day windows
+  (DONKI refuses >60). One score per CME on its LATEST Earth-directed run.
+- **Matching rule (the load-bearing decision)**: confirmed = a forecaster-linked IPS
+  (`linkedEvents` carries the CME activityID). NOT time proximity: Earth sees ~73 shocks/yr, so
+  a +-24 h window "confirms" 57/106 predictions by coincidence versus 35/106 truly linked.
+- **Measured 2026-10-03**: 106 Earth-directed CMEs, 35 confirmed, mean abs arrival error 10.9 h,
+  median -4.5 h (arrive EARLY), 43% within 6 h, 69% within 12 h. 7/7 CMEs with a recorded storm
+  exceeded the model Kp range (selection-biased: only storms that happened have a Kp).
+- **Honesty limits baked into the wording**: "unconfirmed" is not "false alarm"; sample <10
+  confirmed suppresses the rate sentence; the old unmeasured "+-7 h" note was replaced by the
+  measurement.
+- CI step degrades to last-known-good; seeder anchors on `builtAt`. Shipped in 74658a7, CI green,
+  live artifact verified.
