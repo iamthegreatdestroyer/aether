@@ -155,7 +155,11 @@ export async function renderSpace(
         const hrs = (p.aosMs - Date.now()) / 3_600_000;
         const inWord = hrs < 1.5 ? `in ${Math.max(1, Math.round(hrs * 60))} min` : `in ${Math.round(hrs)} h`;
         passRows.push(`<tr><td>${loc.name}</td>
-          <td>${x.station} · ${new Date(p.aosMs).toISOString().slice(5, 16).replace('T', ' ')}Z (${inWord})</td>
+          <td>${x.station} · ${new Date(p.aosMs).toISOString().slice(5, 16).replace('T', ' ')}Z (${inWord})${
+            x.skippedCloudy > 0
+              ? `<br><span class="muted">${x.skippedCloudy === 1 ? 'an earlier pass is' : x.skippedCloudy + ' earlier passes are'} too cloudy</span>`
+              : ''
+          }</td>
           <td class="num">max ${Math.round(p.maxElevDeg)}° · ${azWord(p.aosAzDeg)}→${azWord(p.losAzDeg)}</td>
           <td class="num">${x.cloudPct !== null ? x.cloudPct + '%' : '—'}</td>
           <td class="${x.verdict.cls}">${x.verdict.verdict}</td></tr>`);

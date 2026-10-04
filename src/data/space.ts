@@ -151,6 +151,8 @@ export interface StationPass {
   /** Cloud cover forecast at peak time; null when the forecast does not reach it. */
   cloudPct: number | null;
   verdict: { verdict: string; cls: string };
+  /** Earlier visible passes passed over because the sky would hide them. */
+  skippedCloudy: number;
 }
 
 /** Cloud cover by UTC hour for the pass window — one small call per location. */
@@ -169,6 +171,28 @@ async function cloudByHour(loc: SavedLocation): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   d.hourly.time.forEach((t, i) => map.set(t.slice(0, 13), d.hourly.cloud_cover[i]!));
   return map;
+}
+
+/**
+ * Which visible pass to show for a station. Only the FIRST visible pass used to be considered,
+ * so an overcast pass tonight hid a clear one tomorrow night, and the row read "overcast —
+ * pass hidden" when a good chance sat inside the same 48 h. Now: the first pass the sky will
+ * not hide (cloud at its peak <= 40 %, the same line passVerdict calls "go look"); if there is
+ * none, the first visible pass exactly as before. `skippedCloudy` says how many earlier passes
+ * were passed over, so the substitution is never silent.
+ */
+export function pickPass(
+  visible: Pass[],
+  cloudOf: (p: Pass) => number | null,
+): { pass: Pass; cloudPct: number | null; skippedCloudy: number } | null {
+  if (visible.length === 0) return null;
+  const i = visible.findIndex((p) => {
+    const c = cloudOf(p);
+    return c !== null && c <= 40;
+  });
+  const at = i < 0 ? 0 : i;
+  const pass = visible[at]!;
+  return { pass, cloudPct: cloudOf(pass), skippedCloudy: at };
 }
 
 function passVerdict(cloudPct: number | null): { verdict: string; cls: string } {
@@ -190,12 +214,19 @@ export async function nextVisiblePasses(loc: SavedLocation): Promise<StationPass
   ]);
   const out: StationPass[] = [];
   for (const [label, [l1, l2]] of tles) {
-    const passes = computePasses(l1, l2, loc.lat, loc.lon, Date.now(), PASS_WINDOW_H);
-    const vis = passes.find((p) => p.visible);
-    if (!vis) continue;
-    const cloudPct =
-      clouds.get(new Date(vis.maxElevMs).toISOString().slice(0, 13)) ?? null;
-    out.push({ station: label, pass: vis, cloudPct, verdict: passVerdict(cloudPct) });
+    const visible = computePasses(l1, l2, loc.lat, loc.lon, Date.now(), PASS_WINDOW_H).filter(
+      (p) => p.visible,
+    );
+    const cloudOf = (p: Pass) => clouds.get(new Date(p.maxElevMs).toISOString().slice(0, 13)) ?? null;
+    const choice = pickPass(visible, cloudOf);
+    if (!choice) continue;
+    out.push({
+      station: label,
+      pass: choice.pass,
+      cloudPct: choice.cloudPct,
+      verdict: passVerdict(choice.cloudPct),
+      skippedCloudy: choice.skippedCloudy,
+    });
   }
   return out;
 }

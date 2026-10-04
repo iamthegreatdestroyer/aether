@@ -1419,3 +1419,13 @@ vs **1.19 C** with the old rule on the same hours, i.e. ~0.35 C of every error w
 Rankings were unaffected (all models paid it equally); absolute errors, "within 2 deg" rates and
 the Personal Nowcast's bias estimates were not. Sensor.Community's current-hour sample is
 rounded the same way.
+
+### 17.5 Station passes: first clear pass, not just the first pass (2026-10-04)
+
+`nextVisiblePasses` considered only the first visible pass per station, so an overcast pass
+tonight hid a clear one tomorrow. `pickPass()` now takes the first visible pass whose peak-hour
+cloud is <= 40 % (the "go look" line); if none is, the first pass as before. The row says "an
+earlier pass is too cloudy" when it substituted, so it is never silent. Unknown cloud never
+counts as clear. Seen live: London's row moved to 10-06 04:04Z (23 % cloud) with that note.
+Caveat the reader can see: a substituted pass can be low (that one peaks at 10 deg) - elevation
+stays in the row.
