@@ -1380,3 +1380,18 @@ ground. The popup shows "route unverified" with the scheduled leg demoted, inste
 it as fact. Verified in the desktop build (SWA1136 PWM->BWI and MXY1400 OGS->RDU flagged while
 plausible routes such as PHL->FLL, BDL->MYR, SDQ->JFK, CDG->MEX stay plain). Aircraft positions
 are desktop-only, so this reaches users with the next MSI, not the web deploy.
+
+### 17.2 Trust audit: Balloon truth (2026-10-03)
+
+Checked against live SondeHub + Open-Meteo for the four saved locations. Three defects in
+`src/data/sondes.ts`, all fixed (unit-tested; live end to end gives a comparison at all four):
+1. **Selection**: "newest frame" put a Vaisala LMS6 that reports no temperature (197 km away) ahead
+   of a live DFM 21 km from Home, so Home showed an unusable sonde. Now: skip temp-less sondes,
+   nearest wins with 1 km per 6 min staleness penalty.
+2. **Wrong model hour**: the model column was always the CURRENT UTC hour, so frames up to 12 h
+   old were compared with a model valid hours later. Now the hour nearest the sonde's own time
+   (`past_days=1` keeps yesterday's hours after 00Z).
+3. **Nothing below 925 hPa (~750 m)**: sondes on or near the ground returned no comparison. The
+   model's 2 m temperature at model elevation now anchors the bottom of the profile; a sonde
+   within 150 m below it takes that value, further outside is null, never extrapolated.
+Live result after: Home +0.2 C, New York -1.7 C, London -1.0 C, Tokyo +0.7 C.
