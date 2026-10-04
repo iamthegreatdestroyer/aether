@@ -22,7 +22,7 @@ import {
   saveLatest,
   shouldLog,
 } from './data/ledger';
-import { captureObservations } from './data/observations';
+import { captureObservations, rebucketObservations } from './data/observations';
 import { runScorer, summarize } from './data/scorer';
 import { buildReceiptsDialog, renderReceipts } from './ui/receipts';
 import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel';
@@ -527,7 +527,12 @@ function refreshAll(): void {
   for (const loc of locations) void hydrateLocation(loc);
   // Score after the hydrates have had a chance to capture fresh truth. Fire-and-forget on a
   // delay rather than awaited — scoring is bookkeeping, never in the render path.
-  window.setTimeout(() => void runScorer(), 20_000);
+  // The one-time observation re-filing (see rebucketObservations) must precede scoring, or the
+  // scorer would rebuild scores from the stale hour labels it is about to repair.
+  window.setTimeout(
+    () => void rebucketObservations().catch(() => undefined).then(() => runScorer()),
+    20_000,
+  );
 }
 
 // ------------------------------------------------------- AI-vs-physics divergence

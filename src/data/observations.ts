@@ -25,7 +25,7 @@
  * hour, so refresh spam cannot double-count truth.
  */
 
-import { STORE_OBS, dbGetAllByIndex, dbPut } from './db';
+import { STORE_OBS, STORE_SCORES, dbClear, dbDelete, dbEntries, dbGetAllByIndex, dbPut } from './db';
 import { fetchJson, hasNativeTransport } from './fetcher';
 import { haversineKm } from './geo';
 import { source } from './sources.mjs';
@@ -45,10 +45,18 @@ export interface Observation {
   station: string;
 }
 
+/**
+ * The forecast hour an observation belongs to: the NEAREST top of the hour, not the one before.
+ * Airport routine reports are taken at :53 and are filed as the next hour's report (their
+ * `reportTime` says so); flooring them scored a 23:53 observation against the 23:00 forecast
+ * — 53 minutes of weather in the wrong direction. Measured 2026-10-03 at KTPA: 30 of 37 reports
+ * at minute :53, mean hourly change 0.48 C, so about 0.4 C of phantom error on every scored
+ * hour (and ~0.9 C where days swing harder). All models paid it equally, so rankings held, but
+ * every absolute error and every "within 2 degrees" rate was worse than the truth.
+ */
 function isoHour(d: Date): string {
-  const h = new Date(d);
-  h.setUTCMinutes(0, 0, 0);
-  return h.toISOString().slice(0, 13) + ':00Z';
+  const t = Math.round(d.getTime() / 3_600_000) * 3_600_000;
+  return new Date(t).toISOString().slice(0, 13) + ':00Z';
 }
 
 function obsKey(o: Pick<Observation, 'locationKey' | 'hour'>): string {
@@ -243,6 +251,44 @@ async function captureSensorCommunity(loc: SavedLocation): Promise<Observation[]
       station: `${temps.length} citizen stations (median)`,
     },
   ];
+}
+
+// ------------------------------------------------------------------- migration
+
+const REBUCKET_FLAG = 'aether.obsbucket.v2';
+
+/**
+ * One-time repair of observations stored under the old floor-to-hour rule. The observation's
+ * own `observedAt` is authoritative, so each is re-filed under its nearest hour; where two land
+ * on one hour the one closer to the top of the hour wins. Scores are DERIVED data (keyed
+ * deterministically, rebuilt from the append-only forecast log), so they are cleared and the
+ * normal scorer rebuilds them — nothing irreplaceable is touched. New keys are written before
+ * old ones are removed, and the flag is set last, so an interruption just repeats the repair.
+ */
+export async function rebucketObservations(): Promise<{ moved: number }> {
+  if (localStorage.getItem(REBUCKET_FLAG)) return { moved: 0 };
+  const all = await dbEntries<Observation>(STORE_OBS);
+  const winners = new Map<string, Observation>();
+  const dist = (o: Observation) => Math.abs(Date.parse(o.observedAt) - Date.parse(o.hour));
+  for (const { value } of all) {
+    const t = new Date(value.observedAt);
+    if (Number.isNaN(t.getTime())) continue;
+    const fixed: Observation = { ...value, hour: isoHour(t) };
+    const k = obsKey(fixed);
+    const prev = winners.get(k);
+    if (!prev || dist(fixed) < dist(prev)) winners.set(k, fixed);
+  }
+  for (const [k, o] of winners) await dbPut(STORE_OBS, o, k);
+  let moved = 0;
+  for (const { key } of all) {
+    if (!winners.has(String(key))) {
+      await dbDelete(STORE_OBS, key);
+      moved++;
+    }
+  }
+  if (moved > 0) await dbClear(STORE_SCORES);
+  localStorage.setItem(REBUCKET_FLAG, new Date().toISOString());
+  return { moved };
 }
 
 // ------------------------------------------------------------------- public

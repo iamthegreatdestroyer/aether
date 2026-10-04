@@ -92,6 +92,14 @@ export function dbPut(store: string, value: unknown, key: IDBValidKey): Promise<
   return tx(store, 'readwrite', (s) => s.put(value, key));
 }
 
+export function dbDelete(store: string, key: IDBValidKey): Promise<undefined> {
+  return tx(store, 'readwrite', (s) => s.delete(key) as IDBRequest<undefined>);
+}
+
+export function dbClear(store: string): Promise<undefined> {
+  return tx(store, 'readwrite', (s) => s.clear() as IDBRequest<undefined>);
+}
+
 export function dbGet<T>(store: string, key: IDBValidKey): Promise<T | undefined> {
   return tx(store, 'readonly', (s) => s.get(key) as IDBRequest<T | undefined>);
 }

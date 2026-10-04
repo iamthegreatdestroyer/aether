@@ -1404,3 +1404,18 @@ geomagnetic and true at local noon). It now takes the Sun's elevation (`sunEleva
 against the NOAA algorithm to 0.01 deg at four points) and says "sky too bright right now" above
 -6 deg, and "cloud cover unavailable" when cloud is null. Station passes were already right:
 cloud is taken at the pass's own peak hour and the SGP4 core is cross-checked against Skyfield.
+
+### 17.4 Trust audit: the truth side of the ledger (2026-10-03)
+
+**Observations were filed under the hour BEFORE they were taken.** Airport routine reports are
+made at :53 (30 of 37 METARs at KTPA; NWS ASOS the same) and `isoHour()` floored them, so a
+23:53 observation was scored against the 23:00 forecast, 53 minutes of weather in the wrong
+direction. Fix: nearest top of the hour (a :53 report is the next hour's report; its
+`reportTime` says so). `rebucketObservations()` re-files stored observations once (flag
+`aether.obsbucket.v2`), clears the DERIVED scores store and lets the normal scorer rebuild it
+from the append-only forecast log; new keys are written before old ones are removed.
+Measured on the real dev ledger (156 NWS/METAR-scored hours): MAE **0.84 C** with the new rule
+vs **1.19 C** with the old rule on the same hours, i.e. ~0.35 C of every error was phantom.
+Rankings were unaffected (all models paid it equally); absolute errors, "within 2 deg" rates and
+the Personal Nowcast's bias estimates were not. Sensor.Community's current-hour sample is
+rounded the same way.
