@@ -113,8 +113,8 @@ export function renderCard(
   title.textContent = state.loc.name;
   const rename = document.createElement('button');
   rename.className = 'card-rename';
-  rename.title = `Rename ${state.loc.name}`;
-  rename.setAttribute('aria-label', `Rename ${state.loc.name}`);
+  rename.title = `Edit ${state.loc.name} - rename it or point it at a different place`;
+  rename.setAttribute('aria-label', `Edit ${state.loc.name}`);
   rename.textContent = '✎';
   rename.addEventListener('click', () => onRename?.(state.loc.id));
 

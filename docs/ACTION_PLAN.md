@@ -1443,3 +1443,15 @@ Durango and Istanbul). **Phone area codes are refused with a reason**: OSM has n
 Verified live in the dev app: 941 refused, 34235 -> Sarasota County, "Asheville, NC" -> Trails
 near Asheville (12 trails with weather at each trail), Save pre-fills the name with no second
 geocoder call, saved places untouched until Save is pressed.
+
+### 17.7 Edit a tile in place (2026-10-04)
+
+The tile pencil used to rename only (deliberately: a rename must not move a place, because the
+ledger is keyed by coordinates). To change what a tile pointed at you had to delete and re-add
+it, losing its slot and, for Home, its yellow pin. The pencil now opens **Edit**: name, plus a
+place search ("Move to: ZIP, town or address"). `updateLocation()` keeps the tile's id; the
+card state is discarded and the new place hydrated fresh, the marker redrawn, the map flown
+there. Honest consequence stated in the dialog: a moved tile starts a fresh forecast track
+record at the new place (the ledger is about places); the old place's history stays stored under
+its own key. Home keeps its 2-decimal rounding. Verified in the dev app: London tile -> Tampa
+kept slot 2, loaded a new 88 F forecast, three markers, saved list updated.

@@ -101,6 +101,35 @@ export function renameLocation(
   return updated;
 }
 
+/**
+ * Change what a tile points at WITHOUT deleting and re-adding it: the id (and so the tile's
+ * place in the rail, its collapsed/expanded memory and Home's yellow pin) stays; the name and/or
+ * coordinates change. Moving a tile changes its locationKey, which is by design: the ledger,
+ * climatology and observations are about a PLACE, so a tile pointed somewhere else starts a
+ * fresh track record there rather than blending two places into one score. The old place's
+ * history is not deleted - it stays stored under its own key.
+ */
+export function updateLocation(
+  locations: SavedLocation[],
+  id: string,
+  patch: { name?: string; lat?: number; lon?: number },
+): SavedLocation[] {
+  const updated = locations.map((l) => {
+    if (l.id !== id) return l;
+    const moved = patch.lat !== undefined && patch.lon !== undefined;
+    // Home keeps the 2-decimal rule from setHomeLocation (GPS jitter must not mint ledgers).
+    const dp = l.id === 'home' ? 2 : 4;
+    return {
+      ...l,
+      name: patch.name?.trim() || l.name,
+      lat: moved ? +patch.lat!.toFixed(dp) : l.lat,
+      lon: moved ? +patch.lon!.toFixed(dp) : l.lon,
+    };
+  });
+  save(updated);
+  return updated;
+}
+
 export function removeLocation(locations: SavedLocation[], id: string): SavedLocation[] {
   const updated = locations.filter((l) => l.id !== id);
   save(updated);

@@ -637,3 +637,9 @@ html, body {
 .trails-where { margin: 6px 0 10px; }
 .trails-where-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13px; }
 .trails-pick { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line, #2a3550); background: rgba(255,255,255,0.06); color: inherit; font: inherit; max-width: 60vw; }
+
+/* Edit tile dialog */
+.edit-row { display: grid; gap: 4px; font-size: 13px; margin: 8px 0; }
+.edit-name { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, #2a3550); background: rgba(255,255,255,0.06); color: inherit; font: inherit; }
+.edit-place { font-size: 13px; margin: 6px 0; }
+.edit-search { margin: 4px 0 8px; }

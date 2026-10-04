@@ -49,7 +49,8 @@ import { balloonTruth } from './data/sondes';
 import { registerLayer } from './layers/registry';
 import { isCardExpanded, renderCard } from './ui/forecastCard';
 import type { CardState } from './ui/forecastCard';
-import { addLocation, loadLocations, locationKey, removeLocation, renameLocation, setHomeLocation } from './ui/locations';
+import { addLocation, loadLocations, locationKey, removeLocation, setHomeLocation, updateLocation } from './ui/locations';
+import { buildEditDialog, openEditLocation } from './ui/editLocationDialog';
 import { applyBasemapLegibility } from './ui/basemapLegibility';
 import { tempDelta, tempUnit, toggleTempUnit, unitLabel } from './ui/units';
 import type { SavedLocation } from './ui/locations';
@@ -375,14 +376,27 @@ function openCone(loc: SavedLocation): void {
   void renderCone(coneDialog, loc, cardStates.get(loc.id)?.data ?? null);
 }
 
+const editDialog = buildEditDialog();
+
 function handleRename(id: string): void {
   const loc = locations.find((l) => l.id === id);
   if (!loc) return;
-  const name = window.prompt('Rename this location:', loc.name);
-  if (name === null || !name.trim()) return;
-  locations = renameLocation(locations, id, name.trim());
-  syncMarkers();
-  renderCards();
+  openEditLocation(editDialog, loc, (name, place) => {
+    locations = updateLocation(locations, id, { name, ...(place ?? {}) });
+    const next = locations.find((l) => l.id === id);
+    // The marker carries the old coordinates and popup text; drop it so syncMarkers redraws it.
+    markers.get(id)?.remove();
+    markers.delete(id);
+    if (place && next) {
+      // A different place is a different forecast, ledger and station: discard the old card
+      // state and load fresh rather than showing the old place's numbers under the new name.
+      cardStates.delete(id);
+      void hydrateLocation(next);
+      map.flyTo({ center: [next.lon, next.lat], zoom: Math.max(map.getZoom(), 8), duration: 1200 });
+    }
+    syncMarkers();
+    renderCards();
+  });
 }
 
 function renderCards(): void {
