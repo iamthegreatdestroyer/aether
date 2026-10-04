@@ -751,7 +751,7 @@ export const SOURCES = [
   {
     id: 'nominatim',
     name: 'Nominatim (OpenStreetMap geocoder)',
-    role: 'Names a location you just dropped — the licence-clean geocoder',
+    role: 'Names a location you just dropped, and finds a typed ZIP / town / address — the licence-clean geocoder',
     baseUrl: 'https://nominatim.openstreetmap.org/reverse',
     probeUrl:
       'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=27.4&lon=-82.45&zoom=15',
@@ -771,7 +771,12 @@ export const SOURCES = [
       'same family as Overpass already in this contract. Their policy explicitly forbids ' +
       'heavy use, so this fires ONCE when a person adds a location — never on pan, never on ' +
       'load, never in a loop — and is probePolitely for the CelesTrak reason. zoom=15 chosen ' +
-      'by measurement: 16 returns street names, 14 collapses cities into counties.',
+      'by measurement: 16 returns street names, 14 collapses cities into counties. ' +
+      'FORWARD SEARCH added 2026-10-04 (/search, same host, same licence): fired only on an ' +
+      'explicit Search press, never as-you-type (their policy forbids autocomplete), and ' +
+      'sharing the nominatim scheduler bucket with reverse lookups so the two cannot exceed ' +
+      '1 req/s together. A bare 5-digit number is tried as a US ZIP first (34235 is also ' +
+      'Durango and Istanbul). Phone area codes are refused: OSM does not know them.',
     verifiedAt: '2026-08-18',
   },
 

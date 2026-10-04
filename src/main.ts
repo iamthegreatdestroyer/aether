@@ -29,6 +29,8 @@ import { buildSpaceDialog, renderSpace, stopSpacePolling } from './ui/spacePanel
 import { buildSmokeDialog, renderSmoke } from './ui/smokePanel';
 import { buildMarineDialog, renderMarine } from './ui/marinePanel';
 import { buildTrailsDialog, renderTrails } from './ui/trailsPanel';
+import { createPlaceSearch } from './ui/placeSearch';
+import type { PlaceHit } from './data/places';
 import { fetchAlertsForPoint } from './data/alerts';
 import { reverseNameSoon } from './data/places';
 import { personalNowcast } from './data/nowcast';
@@ -307,12 +309,16 @@ function setAddArmed(on: boolean): void {
   map.getCanvas().style.cursor = on ? 'crosshair' : '';
 }
 
-async function addLocationAt(lat: number, lon: number): Promise<void> {
+async function addLocationAt(lat: number, lon: number, knownName?: string): Promise<void> {
   // Offer the place's real name rather than a blank box. Bounded, because naming is a
-  // courtesy and nobody should wait on a volunteer geocoder to add a pin.
-  map.getCanvas().style.cursor = 'progress';
-  const suggested = await reverseNameSoon(lat, lon);
-  map.getCanvas().style.cursor = '';
+  // courtesy and nobody should wait on a volunteer geocoder to add a pin. A searched place
+  // already has a name, so no second geocoder call is made for it.
+  let suggested: string | null = knownName ?? null;
+  if (suggested === null) {
+    map.getCanvas().style.cursor = 'progress';
+    suggested = await reverseNameSoon(lat, lon);
+    map.getCanvas().style.cursor = '';
+  }
   const name = window.prompt(
     `Name this location (${lat.toFixed(2)}, ${lon.toFixed(2)}):`,
     suggested ?? '',
@@ -871,9 +877,60 @@ smokeToggle.addEventListener('click', () => {
 });
 
 const trailsDialog = buildTrailsDialog();
+const saveSearchedPlace = (l: { name: string; lat: number; lon: number }) =>
+  void addLocationAt(l.lat, l.lon, l.name);
 document.getElementById('trails-toggle')!.addEventListener('click', () => {
   trailsDialog.showModal();
-  void renderTrails(trailsDialog, locations);
+  void renderTrails(trailsDialog, locations, undefined, saveSearchedPlace);
+});
+
+// ---------------------------------------------------------------- place search
+// Find any place without touching Home: fly there, look at its trails, or save it.
+const searchDialog = document.createElement('dialog');
+searchDialog.className = 'sources-dialog search-dialog';
+document.body.append(searchDialog);
+
+function renderSearchDialog(): void {
+  searchDialog.innerHTML = `<button class="dialog-close" aria-label="Close">×</button>
+    <h2>Find a place</h2>
+    <p class="sources-intro">Type a ZIP code, town or street address. Results come from
+    OpenStreetMap (ODbL). Looking somewhere does not move Home or save anything.</p>`;
+  searchDialog.querySelector('.dialog-close')!.addEventListener('click', () => searchDialog.close());
+  searchDialog.append(createPlaceSearch({ onPick: showPicked }));
+  searchDialog.querySelector<HTMLInputElement>('.place-search-input')?.focus();
+}
+
+function showPicked(hit: PlaceHit): void {
+  map.flyTo({ center: [hit.lon, hit.lat], zoom: Math.max(map.getZoom(), 10), duration: 1400 });
+  searchDialog.innerHTML = `<button class="dialog-close" aria-label="Close">×</button>
+    <h2>${hit.name.replace(/</g, '&lt;')}</h2>
+    <p class="sources-intro">${hit.label.replace(/</g, '&lt;')}</p>
+    <div class="search-actions">
+      <button id="sp-trails">🥾 Trails near here</button>
+      <button id="sp-add">＋ Save to my places</button>
+      <button id="sp-back">← Search again</button>
+    </div>`;
+  searchDialog.querySelector('.dialog-close')!.addEventListener('click', () => searchDialog.close());
+  searchDialog.querySelector('#sp-back')!.addEventListener('click', renderSearchDialog);
+  searchDialog.querySelector('#sp-add')!.addEventListener('click', () => {
+    searchDialog.close();
+    void addLocationAt(hit.lat, hit.lon, hit.name);
+  });
+  searchDialog.querySelector('#sp-trails')!.addEventListener('click', () => {
+    searchDialog.close();
+    trailsDialog.showModal();
+    void renderTrails(
+      trailsDialog,
+      locations,
+      { loc: { id: 'searched', name: hit.name, lat: hit.lat, lon: hit.lon }, searched: true },
+      saveSearchedPlace,
+    );
+  });
+}
+
+document.getElementById('search-toggle')!.addEventListener('click', () => {
+  renderSearchDialog();
+  searchDialog.showModal();
 });
 
 const marineDialog = buildMarineDialog();

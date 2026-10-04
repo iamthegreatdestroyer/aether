@@ -622,3 +622,18 @@ html, body {
 
 /* Aircraft popup: a route the aircraft is plainly not flying */
 .route-stale { color: #ffb454; font-weight: 600; }
+
+/* Place search (header Search dialog + Trails "look somewhere else") */
+.place-search-form { display: flex; gap: 8px; margin: 8px 0 4px; }
+.place-search-input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, #2a3550); background: rgba(255,255,255,0.06); color: inherit; font: inherit; }
+.place-search-go, .search-actions button, .trails-where-row button { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line, #2a3550); background: rgba(255,255,255,0.08); color: inherit; font: inherit; cursor: pointer; }
+.place-search-go:disabled { opacity: 0.5; cursor: progress; }
+.place-search-status { font-size: 12px; min-height: 1.2em; margin: 2px 0 6px; }
+.place-search-results { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.place-search-hit { width: 100%; text-align: left; display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, #2a3550); background: rgba(255,255,255,0.05); color: inherit; font: inherit; cursor: pointer; }
+.place-search-hit:hover { background: rgba(255,255,255,0.12); }
+.place-search-hit .muted { font-size: 12px; }
+.search-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.trails-where { margin: 6px 0 10px; }
+.trails-where-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13px; }
+.trails-pick { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line, #2a3550); background: rgba(255,255,255,0.06); color: inherit; font: inherit; max-width: 60vw; }

@@ -79,3 +79,79 @@ export async function reverseNameSoon(lat: number, lon: number, ms = 1800): Prom
     new Promise<null>((r) => setTimeout(() => r(null), ms)),
   ]);
 }
+
+// ------------------------------------------------------------------ forward search
+
+export interface PlaceHit {
+  /** Short name suitable for a saved location ("Sarasota", "1600 Pennsylvania Avenue"). */
+  name: string;
+  /** Longer line for telling lookalikes apart ("Sarasota County, Florida, United States"). */
+  label: string;
+  lat: number;
+  lon: number;
+}
+
+interface NominatimHit {
+  lat: string;
+  lon: string;
+  display_name: string;
+  name?: string;
+  address?: NominatimAddress & { road?: string; house_number?: string; postcode?: string };
+}
+
+export class PlaceSearchError extends Error {}
+
+const US_ZIP = /^\d{5}(-\d{4})?$/;
+const BARE_AREA_CODE = /^\(?\d{3}\)?$/;
+
+/**
+ * Forward geocoding — a typed address, ZIP, town or landmark to coordinates. Same host, same
+ * ODbL licence and same one-request-per-second bucket as reverseName (it deliberately reuses
+ * the 'nominatim' scheduler id so the two cannot add up to more than the published policy).
+ *
+ * Fired ONLY on an explicit Search press — never as-you-type: Nominatim's policy forbids
+ * auto-complete. Phone area codes are refused with a reason: they are a numbering plan, not a
+ * place, and OSM does not know them, so a guess would be a confident wrong answer.
+ */
+export async function searchPlaces(query: string): Promise<PlaceHit[]> {
+  const q = query.trim().replace(/\s+/g, ' ');
+  if (q.length < 3) throw new PlaceSearchError('Type at least 3 characters.');
+  if (BARE_AREA_CODE.test(q)) {
+    throw new PlaceSearchError(
+      'A phone area code is not a place on the map — try a ZIP code, town or street address.',
+    );
+  }
+
+  const run = async (params: Record<string, string>): Promise<NominatimHit[]> => {
+    const u = new URL('search', source('nominatim').baseUrl!);
+    u.searchParams.set('format', 'jsonv2');
+    u.searchParams.set('addressdetails', '1');
+    u.searchParams.set('limit', '6');
+    for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+    return fetchJson<NominatimHit[]>('nominatim', u.toString());
+  };
+
+  // A bare 5-digit number is ambiguous worldwide (34235 is also Durango, Mexico and Istanbul);
+  // try it as a US ZIP first, and only widen the question if the US has no such code.
+  let raw: NominatimHit[] = [];
+  if (US_ZIP.test(q)) raw = await run({ postalcode: q.slice(0, 5), countrycodes: 'us' });
+  if (raw.length === 0) raw = await run({ q });
+
+  const seen = new Set<string>();
+  const hits: PlaceHit[] = [];
+  for (const r of raw) {
+    const lat = Number(r.lat);
+    const lon = Number(r.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+    if (seen.has(key)) continue; // OSM often returns the same spot as node + way + relation
+    seen.add(key);
+    const a = r.address ?? {};
+    const street = a.road ? `${a.house_number ? a.house_number + ' ' : ''}${a.road}` : null;
+    const name =
+      r.name || street || a.neighbourhood || a.suburb || a.hamlet || a.village || a.town ||
+      a.city || a.county || r.display_name.split(',')[0]!.trim();
+    hits.push({ name, label: r.display_name, lat: +lat.toFixed(4), lon: +lon.toFixed(4) });
+  }
+  return hits;
+}

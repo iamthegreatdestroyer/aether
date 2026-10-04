@@ -1429,3 +1429,17 @@ earlier pass is too cloudy" when it substituted, so it is never silent. Unknown 
 counts as clear. Seen live: London's row moved to 10-06 04:04Z (23 % cloud) with that note.
 Caveat the reader can see: a substituted pass can be low (that one peaks at 10 deg) - elevation
 stays in the row.
+
+### 17.6 Search any place (2026-10-04)
+
+Owner report: to see trails somewhere else you had to reset Home (`renderTrails` used
+`locations[0]`). Now: a header **Search** button (ZIP / town / street address -> OSM results ->
+fly there, Trails near here, or Save), and the Trails panel has "Trails near: [saved places]" plus
+its own search box and a Save button. Looking somewhere never moves Home or adds a saved place.
+Geocoder = Nominatim `/search` (same host/licence as reverse naming; Open-Meteo's geocoder stays
+off the table, it is CC BY-NC). Policy-bound: Enter/button only, never as-you-type; shares the
+`nominatim` 1 req/s bucket. A bare 5-digit number is tried as a US ZIP first (34235 is also
+Durango and Istanbul). **Phone area codes are refused with a reason**: OSM has no notion of them.
+Verified live in the dev app: 941 refused, 34235 -> Sarasota County, "Asheville, NC" -> Trails
+near Asheville (12 trails with weather at each trail), Save pre-fills the name with no second
+geocoder call, saved places untouched until Save is pressed.

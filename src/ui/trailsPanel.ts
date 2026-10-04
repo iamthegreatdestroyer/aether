@@ -15,6 +15,7 @@ import { fetchJson } from '../data/fetcher';
 import { source } from '../data/sources.mjs';
 import { fmtTemp } from './units';
 import type { SavedLocation } from './locations';
+import { createPlaceSearch } from './placeSearch';
 
 export function buildTrailsDialog(): HTMLDialogElement {
   const dlg = document.createElement('dialog');
@@ -51,15 +52,22 @@ async function weatherForTrails(trails: Trail[]): Promise<TrailWeather[]> {
   });
 }
 
+/**
+ * `target` is the place to look at; without it the first saved location is used (Home when
+ * set). A searched place is NOT a saved one: looking at trails somewhere should never mean
+ * moving Home or cluttering the rail, so saving is a separate, explicit button (`onSave`).
+ */
 export async function renderTrails(
   dlg: HTMLDialogElement,
   locations: SavedLocation[],
+  target?: { loc: SavedLocation; searched: boolean },
+  onSave?: (loc: SavedLocation) => void,
 ): Promise<void> {
   dlg.innerHTML = `<button class="dialog-close" aria-label="Close">×</button>
     <h2>Trails</h2><p class="sources-intro">Asking OpenStreetMap what is nearby…</p>`;
   dlg.querySelector('.dialog-close')?.addEventListener('click', () => dlg.close());
 
-  const loc = locations[0];
+  const loc = target?.loc ?? locations[0];
   if (!loc) {
     dlg.innerHTML += '<p class="muted">No saved locations.</p>';
     return;
@@ -120,6 +128,7 @@ export async function renderTrails(
     <h2>Trails near ${loc.name}</h2>
     <p class="sources-intro">Trails from OpenStreetMap (ODbL) · elevation from USGS 3DEP ·
       conditions sampled AT each trail, not at your pin — one request covers them all.</p>
+    <div class="trails-where"></div>
     ${body}
     <p class="smoke-honesty">This is not an offline map pack, which is the thing those
     subscriptions are really selling. It is the half they do not sell: what the weather is
@@ -127,4 +136,60 @@ export async function renderTrails(
     and driveway spurs tagged as paths.</p>`;
 
   dlg.querySelector('.dialog-close')?.addEventListener('click', () => dlg.close());
+  mountWhere(dlg, locations, loc, !!target?.searched, onSave);
+}
+
+/** "Look somewhere else": any saved place, or search for any address / ZIP / town. */
+function mountWhere(
+  dlg: HTMLDialogElement,
+  locations: SavedLocation[],
+  current: SavedLocation,
+  searched: boolean,
+  onSave?: (loc: SavedLocation) => void,
+): void {
+  const host = dlg.querySelector('.trails-where');
+  if (!host) return;
+
+  const select = document.createElement('select');
+  select.className = 'trails-pick';
+  select.setAttribute('aria-label', 'Saved place');
+  const here = searched ? `<option value="" selected>Searched: ${current.name}</option>` : '';
+  select.innerHTML =
+    here +
+    locations
+      .map((l) => `<option value="${l.id}" ${!searched && l.id === current.id ? 'selected' : ''}>${l.name}</option>`)
+      .join('');
+  select.addEventListener('change', () => {
+    const l = locations.find((x) => x.id === select.value);
+    if (l) void renderTrails(dlg, locations, { loc: l, searched: false }, onSave);
+  });
+
+  const row = document.createElement('div');
+  row.className = 'trails-where-row';
+  row.append('Trails near: ', select);
+  if (searched && onSave) {
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.textContent = '＋ Save this place';
+    save.addEventListener('click', () => {
+      onSave(current);
+      save.disabled = true;
+      save.textContent = 'Saving…';
+    });
+    row.append(save);
+  }
+  host.append(row);
+
+  host.append(
+    createPlaceSearch({
+      placeholder: 'or search any ZIP, town or address',
+      onPick: (hit) =>
+        void renderTrails(
+          dlg,
+          locations,
+          { loc: { id: 'searched', name: hit.name, lat: hit.lat, lon: hit.lon }, searched: true },
+          onSave,
+        ),
+    }),
+  );
 }
