@@ -374,12 +374,23 @@ export function sampleAurora(lat: number, lon: number): number | null {
 /**
  * The verified-novel cross (proposal §4.1.1): aurora probability × cloud cover → can you
  * actually SEE it. Both halves shown; the verdict never hides either.
+ *
+ * Two things this used to claim without knowing (found in the 2026-10-03 trust audit):
+ *  - an UNKNOWN cloud cover was passed in as 0 %, so a failed cloud lookup read "go outside";
+ *  - it never asked whether it is dark. The OVATION oval is a geomagnetic statement, true at
+ *    local noon too, so "go outside" was a valid output for a sunlit sky. `sunElevDeg` is the
+ *    Sun's elevation at the location now; above -6 deg (civil twilight) nothing is visible.
  */
 export function auroraVerdict(
   auroraPct: number,
-  cloudPct: number,
+  cloudPct: number | null,
+  sunElevDeg: number | null = null,
 ): { verdict: string; cls: string } {
   if (auroraPct < 5) return { verdict: 'no aurora expected at this latitude', cls: 'aurora-none' };
+  if (sunElevDeg !== null && sunElevDeg > -6) {
+    return { verdict: 'aurora likely overhead — but the sky is too bright right now', cls: 'aurora-maybe' };
+  }
+  if (cloudPct === null) return { verdict: 'aurora likely overhead — cloud cover unavailable', cls: 'aurora-maybe' };
   if (cloudPct > 80) return { verdict: 'aurora likely overhead — but overcast', cls: 'aurora-clouded' };
   if (auroraPct >= 30 && cloudPct <= 40) return { verdict: 'go outside', cls: 'aurora-go' };
   if (auroraPct >= 10) return { verdict: 'possible low on the horizon — sky permitting', cls: 'aurora-maybe' };

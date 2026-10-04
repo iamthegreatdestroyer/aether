@@ -1395,3 +1395,12 @@ Checked against live SondeHub + Open-Meteo for the four saved locations. Three d
    model's 2 m temperature at model elevation now anchors the bottom of the profile; a sonde
    within 150 m below it takes that value, further outside is null, never extrapolated.
 Live result after: Home +0.2 C, New York -1.7 C, London -1.0 C, Tokyo +0.7 C.
+
+### 17.3 Trust audit: aurora x cloud verdict (2026-10-03)
+
+`auroraVerdict` claimed two things it did not know: an UNKNOWN cloud cover was passed in as 0 %
+(a failed lookup read "go outside"), and it never asked whether it was dark (the OVATION oval is
+geomagnetic and true at local noon). It now takes the Sun's elevation (`sunElevationDeg`, checked
+against the NOAA algorithm to 0.01 deg at four points) and says "sky too bright right now" above
+-6 deg, and "cloud cover unavailable" when cloud is null. Station passes were already right:
+cloud is taken at the pass's own peak hour and the SGP4 core is cross-checked against Skyfield.

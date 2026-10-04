@@ -21,6 +21,7 @@ import {
 import type { CmeOutlook } from '../data/space';
 import { cmeLedgerSentences, loadCmeLedger } from '../data/cmeLedger';
 import { balloonTruth } from '../data/sondes';
+import { sunElevationDeg } from '../data/passes';
 import { fetchJson } from '../data/fetcher';
 import { source } from '../data/sources.mjs';
 import type { SavedLocation } from './locations';
@@ -132,7 +133,7 @@ export async function renderSpace(
       const prob = sampleAurora(loc.lat, loc.lon);
       const cloud = prob !== null && prob >= 5 ? await cloudCoverNow(loc) : null;
       if (prob === null) return `<tr><td>${loc.name}</td><td colspan="3">aurora model unavailable</td></tr>`;
-      const v = auroraVerdict(prob, cloud ?? 0);
+      const v = auroraVerdict(prob, cloud, sunElevationDeg(loc.lat, loc.lon, Date.now()));
       return `<tr><td>${loc.name}</td>
         <td class="num">${prob}%</td>
         <td class="num">${cloud !== null ? cloud + '%' : '—'}</td>
