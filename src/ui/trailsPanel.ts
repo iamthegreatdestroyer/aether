@@ -8,7 +8,7 @@
  * single request no matter how many trails come back.
  */
 
-import { fetchElevationM, fetchTrails, lengthLabel, trailKindGlyph } from '../data/trails';
+import { TrailsBusyError, fetchElevationM, lengthLabel, loadTrails, trailKindGlyph } from '../data/trails';
 import type { Trail } from '../data/trails';
 import { fetchAlertsForPoint, worst } from '../data/alerts';
 import { fetchJson } from '../data/fetcher';
@@ -52,6 +52,16 @@ async function weatherForTrails(trails: Trail[]): Promise<TrailWeather[]> {
   });
 }
 
+/** Say where the list came from when it is not a fresh answer; silence when it is. */
+function freshnessNote(r: { origin: 'live' | 'cache' | 'stale'; fetchedAt: number }): string {
+  if (r.origin === 'live') return '';
+  const h = Math.max(0, Math.round((Date.now() - r.fetchedAt) / 3_600_000));
+  const ago = h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+  return r.origin === 'cache'
+    ? `<p class="marine-src">Trail list saved on this device ${ago} (OpenStreetMap trails do not change by the hour); the weather beside each trail is live.</p>`
+    : `<p class="alert-banner alert-moderate">OpenStreetMap's trail server is busy right now, so this is the list saved ${ago}. The weather beside each trail is live.</p>`;
+}
+
 /**
  * `target` is the place to look at; without it the first saved location is used (Home when
  * set). A searched place is NOT a saved one: looking at trails somewhere should never mean
@@ -75,7 +85,8 @@ export async function renderTrails(
 
   let body = '';
   try {
-    const trails = (await fetchTrails(loc)).slice(0, 12);
+    const result = await loadTrails(loc);
+    const trails = result.trails.slice(0, 12);
     if (trails.length === 0) {
       body = `<p class="muted">No named trails within 15 km of ${loc.name} in OpenStreetMap.
         That is a real answer — and if you know one that is missing, OSM is editable by anyone.</p>`;
@@ -109,7 +120,7 @@ export async function renderTrails(
              <b>⚠ ${alert.event}</b> in force over this area — check before heading out.</p>`
         : '';
 
-      body = `${warn}
+      body = `${warn}${freshnessNote(result)}
         <table class="receipts-table">
           <thead><tr><th>trail</th><th>length</th><th>from you</th><th>surface</th>
             <th>feels like</th><th>wind</th></tr></thead>
@@ -120,7 +131,10 @@ export async function renderTrails(
           · lengths summed across OSM way segments sharing a name</p>`;
     }
   } catch (err) {
-    body = `<p class="muted">trail lookup failed: ${err instanceof Error ? err.message : err}</p>`;
+    body =
+      err instanceof TrailsBusyError
+        ? `<p class="alert-banner alert-moderate">${err.message}</p>`
+        : `<p class="muted">trail lookup failed: ${err instanceof Error ? err.message : err}</p>`;
   }
 
   dlg.innerHTML = `

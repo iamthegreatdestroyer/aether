@@ -14,7 +14,8 @@
  * is — that is the fusion this app was built for, and the route sampler already speaks it.
  */
 
-import { fetchJson } from './fetcher';
+import { FetchError, fetchJson } from './fetcher';
+import { STORE_LATEST, dbGet, dbPut } from './db';
 import { source } from './sources.mjs';
 import { haversineKm } from './geo';
 import type { SavedLocation } from '../ui/locations';
@@ -64,10 +65,16 @@ export async function fetchTrails(loc: SavedLocation, radiusKm = 15): Promise<Tr
     `way(around:${r},${loc.lat.toFixed(4)},${loc.lon.toFixed(4)})` +
     `["highway"~"^(${TRAIL_KINDS.join('|')})$"]["name"];` +
     `out geom tags;`;
-  const d = await fetchJson<{ elements?: OverpassWay[] }>(
+  const d = await fetchJson<{ elements?: OverpassWay[]; remark?: string }>(
     'overpass',
     `${source('overpass').baseUrl}?data=${encodeURIComponent(q)}`,
   );
+  // Overpass answers an overloaded or timed-out query with HTTP 200, a `remark`, and ZERO
+  // elements, which looks exactly like "no trails here". Reported as a lookup failure instead,
+  // because an empty list shown (and cached) as a fact would be a confident wrong answer.
+  if (d.remark && /runtime error|timed out|out of memory|too busy/i.test(d.remark)) {
+    throw new FetchError(source('overpass').baseUrl!, null, `overpass remark: ${d.remark}`);
+  }
 
   const byName = new Map<string, Trail>();
   for (const w of d.elements ?? []) {
@@ -129,4 +136,119 @@ export function trailKindGlyph(kind: string): string {
 
 export function lengthLabel(m: number): string {
   return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
+}
+
+// ------------------------------------------------------------------ cache + busy handling
+
+/**
+ * The Trails lookup rides the shared, free Overpass API, which measured 2026-11-02 answers in
+ * 33-42 s when it answers at all, and was the only red line in the daily endpoint audit for 12
+ * straight days (HTTP 502 and timeouts). OSM trails do not change by the hour, so the geometry
+ * is cached per place; live weather, alerts and elevation are NOT cached.
+ */
+const TRAILS_TTL_MS = 24 * 3_600_000;
+/** An empty answer might be a real "nothing mapped here" or a hiccup: re-ask sooner. */
+const TRAILS_EMPTY_TTL_MS = 2 * 3_600_000;
+/** After a failed refresh, an older list still beats an error, up to this age. */
+const TRAILS_STALE_MAX_MS = 30 * 24 * 3_600_000;
+const TRAILS_DEADLINE_MS = 55_000;
+
+export interface TrailsResult {
+  trails: Trail[];
+  /** When the list was fetched from OpenStreetMap (ms). */
+  fetchedAt: number;
+  /** live = just fetched; cache = fresh enough, not re-asked; stale = refresh failed, old list shown. */
+  origin: 'live' | 'cache' | 'stale';
+}
+
+export class TrailsBusyError extends Error {
+  constructor() {
+    super(
+      "OpenStreetMap's free trail server is busy right now (it is a shared community service). " +
+        'Nothing is wrong on your side - try again in a minute.',
+    );
+  }
+}
+
+interface CacheEntry {
+  fetchedAt: number;
+  trails: Trail[];
+}
+
+export const trailsCacheKey = (loc: { lat: number; lon: number }, radiusKm: number) =>
+  `trails|${loc.lat.toFixed(3)},${loc.lon.toFixed(3)}|${radiusKm}`;
+
+/** Server-side trouble and network failure are "busy"; a 4xx is OUR bug and stays visible. */
+export function isBusyError(err: unknown): boolean {
+  if (err instanceof TrailsBusyError) return true;
+  if (err instanceof FetchError) return err.status === null || err.status === 429 || err.status >= 500;
+  return false;
+}
+
+/** Distances are relative to wherever you are looking from, so they are never cached. */
+function withDistances(trails: Trail[], loc: { lat: number; lon: number }): Trail[] {
+  return trails
+    .map((t) => ({ ...t, distanceKm: Math.round(haversineKm(loc.lat, loc.lon, t.lat, t.lon) * 10) / 10 }))
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+/**
+ * Cache-first trail lookup. Pure in its dependencies (cache I/O, the live call, the clock) so
+ * the policy can be tested without a browser:
+ *   fresh cache -> return it, no network;  else ask Overpass, racing a deadline;
+ *   success -> store + return;  failure -> the old list if any exists, else a plain "busy" error.
+ * A live call that loses the deadline race keeps running and still fills the cache when it
+ * lands, so the NEXT open is instant instead of paying the same 40 s again.
+ */
+export async function resolveTrails(
+  deps: {
+    read: () => Promise<CacheEntry | undefined>;
+    write: (e: CacheEntry) => Promise<unknown>;
+    live: () => Promise<Trail[]>;
+    now: () => number;
+    deadlineMs: number;
+  },
+  loc: { lat: number; lon: number },
+): Promise<TrailsResult> {
+  const cached = await deps.read().catch(() => undefined);
+  const age = cached ? deps.now() - cached.fetchedAt : Infinity;
+  const ttl = cached && cached.trails.length === 0 ? TRAILS_EMPTY_TTL_MS : TRAILS_TTL_MS;
+  if (cached && age < ttl) {
+    return { trails: withDistances(cached.trails, loc), fetchedAt: cached.fetchedAt, origin: 'cache' };
+  }
+
+  const livePromise = deps.live();
+  livePromise
+    .then((trails) => deps.write({ fetchedAt: deps.now(), trails }))
+    .catch(() => undefined); // the race below reports failure; this only fills the cache
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new TrailsBusyError()), deps.deadlineMs);
+  });
+
+  try {
+    const trails = await Promise.race([livePromise, deadline]);
+    return { trails, fetchedAt: deps.now(), origin: 'live' };
+  } catch (err) {
+    if (cached && age < TRAILS_STALE_MAX_MS) {
+      return { trails: withDistances(cached.trails, loc), fetchedAt: cached.fetchedAt, origin: 'stale' };
+    }
+    throw isBusyError(err) ? new TrailsBusyError() : err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function loadTrails(loc: SavedLocation, radiusKm = 15): Promise<TrailsResult> {
+  const key = trailsCacheKey(loc, radiusKm);
+  return resolveTrails(
+    {
+      read: () => dbGet<CacheEntry>(STORE_LATEST, key),
+      write: (e) => dbPut(STORE_LATEST, e, key),
+      live: () => fetchTrails(loc, radiusKm),
+      now: () => Date.now(),
+      deadlineMs: TRAILS_DEADLINE_MS,
+    },
+    loc,
+  );
 }

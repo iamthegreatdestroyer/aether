@@ -1455,3 +1455,22 @@ there. Honest consequence stated in the dialog: a moved tile starts a fresh fore
 record at the new place (the ledger is about places); the old place's history stays stored under
 its own key. Home keeps its 2-decimal rounding. Verified in the dev app: London tile -> Tampa
 kept slot 2, loaded a new 88 F forecast, three markers, saved list updated.
+
+### 17.8 Trails: cache + honest "busy" (2026-11-02)
+
+Why: the strict daily endpoint audit was red 12+ days running on `overpass` alone (8x HTTP 502
+in ~0.4 s, 4x 25 s timeouts), and a Trails lookup measured 33-42 s when it succeeded (37 s again
+today for Asheville). Contract deliberately NOT widened: a red audit that is true should stay red.
+What: `loadTrails()` caches the OSM trail GEOMETRY per place (3-decimal key, IndexedDB `latest`)
+for 24 h; distances are recomputed for the current viewpoint; weather/alerts/elevation stay live.
+After a failed refresh an older list (<= 30 d) is shown with a banner saying so; with no list, a
+plain "server busy, not your side" message replaces the raw error. A query that loses the 55 s
+deadline keeps running and still fills the cache, so the next open is instant. Empty answers get
+a 2 h TTL (could be a hiccup). Also fixed: Overpass answers a timed-out query with HTTP 200 +
+`remark` + ZERO elements, which read as "no trails here" (and would now have been cached for a
+day): that is now a failure. 4xx errors stay visible rather than being dressed up as "busy".
+Verified: 14 unit cases (policy incl. deadline + late fill + 31-day-old refusal), and live in
+the dev app: first Asheville lookup 37 s / 124 trails, second 2 ms from cache; simulated outage
+-> stale-list banner with a 30 h-old cache, busy message with none.
+Not changed: the audit stays red until Overpass recovers or a better mirror is found (the two
+mirrors tried were worse). Ships to web/phone on push; desktop needs the next MSI.
